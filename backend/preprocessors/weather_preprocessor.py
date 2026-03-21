@@ -16,19 +16,30 @@ def process_weather_signal(raw_json: dict[str, Any], location_id: str) -> list[d
     precips = hourly.get("precipitation") or []
     codes = hourly.get("weathercode") or [0] * len(times)
 
+    # Create a lookup map to ensure we match by time string, not just array position
+    weather_map = {}
+    for i, t in enumerate(times):
+        dt = parse_dt(t)
+        if dt:
+            key = format_forecast_dt(dt)
+            weather_map[key] = {
+                "temp": float(temps[i]) if i < len(temps) else 20.0,
+                "precip": float(precips[i]) if i < len(precips) else 0.0,
+                "code": int(codes[i]) if i < len(codes) else 0,
+                "original_time": t
+            }
+
     now = datetime.now(timezone.utc)
     out: list[dict[str, Any]] = []
 
-    for i, t in enumerate(times):
-        temp = float(temps[i]) if i < len(temps) else 20.0
-        precip = float(precips[i]) if i < len(precips) else 0.0
-        _wc = int(codes[i]) if i < len(codes) else 0
-
-        dt = parse_dt(t)
+    for forecast_dt, data in weather_map.items():
+        dt = parse_dt(forecast_dt)
         if dt is None:
             continue
-        dt = dt.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
-
+            
+        temp = data["temp"]
+        precip = data["precip"]
+        
         uplift = 0.0
         if temp > 24 and precip == 0:
             uplift += 0.12
@@ -57,7 +68,7 @@ def process_weather_signal(raw_json: dict[str, Any], location_id: str) -> list[d
             {
                 "location_id": location_id,
                 "signal_type": "open_meteo",
-                "forecast_dt": format_forecast_dt(dt),
+                "forecast_dt": forecast_dt,
                 "uplift_pct": uplift,
                 "confidence": conf,
                 "label": f"Weather {temp:.0f}°C, rain {precip:.1f}mm",
@@ -65,5 +76,8 @@ def process_weather_signal(raw_json: dict[str, Any], location_id: str) -> list[d
                 "source_url": "https://open-meteo.com/",
             }
         )
+    
+    if out:
+        print(f"[WEATHER] Processed {len(out)} hours. Example mapping: {out[0]['forecast_dt']} -> {out[0]['label']}")
 
     return out

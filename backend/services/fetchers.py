@@ -85,7 +85,7 @@ def fetch_open_meteo(lat: float, lng: float) -> dict[str, Any]:
                 "longitude": lng,
                 "hourly": "temperature_2m,precipitation,weathercode",
                 "forecast_days": 16,
-                "timezone": "UTC",
+                "timezone": "Australia/Sydney",
             },
             timeout=25,
         )
