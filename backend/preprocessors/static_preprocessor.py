@@ -58,19 +58,6 @@ def process_static_signal(raw_json: dict[str, Any], location_id: str) -> list[di
                 out.append(
                     _row(location_id, "static_holiday", hr, 0.12, 0.99, str(hn), None)
                 )
-            if sport:
-                out.append(
-                    _row(
-                        location_id,
-                        "static_sport",
-                        hr,
-                        0.20,
-                        0.95,
-                        sport.get("label", "Sporting fixture"),
-                        sport.get("distance_km"),
-                        sport.get("source_url"),
-                    )
-                )
             if uni_exam:
                 out.append(
                     _row(location_id, "static_uni", hr, -0.06, 0.90, "University exam period", None)
@@ -78,6 +65,28 @@ def process_static_signal(raw_json: dict[str, Any], location_id: str) -> list[di
             if uni_oweek:
                 out.append(
                     _row(location_id, "static_uni", hr, 0.15, 0.95, "O-Week / orientation", None)
+                )
+
+        # Sport fixtures: only emit rows for the match time window
+        if sport:
+            match_start_h = int(sport.get("match_time", "15:00").split(":")[0])
+            match_end_h = int(sport.get("match_end_time", "17:00").split(":")[0])
+            # Include 1 hour before kick-off through 1 hour after end (dispersal)
+            start_h = max(0, match_start_h - 1)
+            end_h = min(23, match_end_h + 1)
+            for h in range(start_h, end_h + 1):
+                hr_dt = day.replace(hour=h, tzinfo=timezone.utc)
+                out.append(
+                    _row(
+                        location_id,
+                        "static_sport",
+                        hr_dt,
+                        0.20,
+                        0.95,
+                        sport.get("label", "Sporting fixture"),
+                        sport.get("distance_km"),
+                        sport.get("source_url"),
+                    )
                 )
 
     return out
@@ -141,6 +150,9 @@ def _sporting_fixture_near(
                 "label": f"{f.get('home_team','')} vs {f.get('away_team','')}",
                 "distance_km": round(d, 2),
                 "source_url": f.get("source_url", ""),
+                "match_time": f.get("match_time", "15:00"),
+                "match_end_time": f.get("match_end_time", "17:00"),
+                "competition": f.get("competition", ""),
             }
     return best
 

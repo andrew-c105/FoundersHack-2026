@@ -50,8 +50,9 @@ def build_training_table(location_id: str, history_days: int = 90) -> pd.DataFra
 
         event_uplift = _event_uplift(location_id, dt)
         event_conf = _event_conf(location_id, dt)
-        weather_uplift = db.get_signal_uplift(location_id, ["open_meteo"], key)
-        weather_conf = db.get_signal_confidence(location_id, ["open_meteo"], key, 0.5)
+        day_key = dt.strftime("%Y-%m-%d")
+        weather_uplift = db.get_signal_uplift(location_id, ["open_meteo"], day_key)
+        weather_conf = db.get_signal_confidence(location_id, ["open_meteo"], day_key, 0.5)
         competitor_shift = db.get_signal_uplift(location_id, ["google_places"], key)
         transport_impact = _transport_total(location_id, dt)
         school_holiday = db.get_signal_uplift(location_id, ["static_school"], key)

@@ -29,9 +29,10 @@ export const api = {
   },
   alerts: (id: string, threshold = 30) =>
     j<PredictionRow[]>(`/api/locations/${id}/alerts?threshold=${threshold}`),
-  mapSignals: (id: string) => j<MapPayload>(`/api/locations/${id}/map-signals`),
   signalsHour: (id: string, forecastDt: string) =>
     j<SignalRow[]>(`/api/locations/${id}/signals/hour?forecast_dt=${encodeURIComponent(forecastDt)}`),
+  signalsDay: (id: string, date: string) =>
+    j<DaySignalsResponse>(`/api/locations/${id}/signals/day?date=${encodeURIComponent(date)}`),
   accuracy: (id: string) => j<{ history: { mae: number; evaluated_at: string }[] }>(`/api/locations/${id}/accuracy`),
   patchLocation: (id: string, body: Record<string, unknown>) =>
     j<Record<string, unknown>>(`/api/locations/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
@@ -53,16 +54,37 @@ export type SignalRow = {
   distance_km: number | null;
 };
 
+export type DaySignal = {
+  label: string;
+  signal_type: string;
+  uplift_pct: number;
+  confidence: number;
+  distance_km: number | null;
+  source_url: string | null;
+  start_hour: number;
+  end_hour: number;
+  description?: string;
+  temp_low?: number;
+  temp_high?: number;
+  total_rain_mm?: number;
+  conditions?: string;
+  outlier?: boolean;
+  outlier_hours?: string;
+  outlier_label?: string;
+};
+
+export type DaySignalsResponse = {
+  date: string;
+  signals: DaySignal[];
+  brief: string;
+  positive_count: number;
+  negative_count: number;
+  total_signals: number;
+};
+
 export type BriefResponse = {
   date: string;
   brief: string;
   peak_hour: PredictionRow | null;
   hours: PredictionRow[];
-};
-
-export type MapPayload = {
-  center: { lat: number; lng: number };
-  markers: Array<
-    SignalRow & { lat: number; lng: number; positive: boolean; forecast_dt?: string; source_url?: string }
-  >;
 };

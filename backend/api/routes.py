@@ -179,3 +179,137 @@ def signals_hour(location_id: str, forecast_dt: str) -> list[dict]:
     if not db.get_location(location_id):
         raise HTTPException(status_code=404, detail="Location not found")
     return db.get_processed_signals_for_hour(location_id, forecast_dt)
+
+
+@router.get("/locations/{location_id}/event-reasoning")
+def event_reasoning(location_id: str, date: Optional[str] = None) -> dict:
+    if not db.get_location(location_id):
+        raise HTTPException(status_code=404, detail="Location not found")
+    rows = db.get_event_reasoning(location_id, date)
+    included = [r for r in rows if r["include"]]
+    excluded = [r for r in rows if not r["include"]]
+    return {
+        "included": included,
+        "excluded": excluded,
+        "total_evaluated": len(rows),
+        "included_count": len(included),
+        "excluded_count": len(excluded),
+    }
+
+
+@router.get("/locations/{location_id}/event-reasoning/debug")
+def event_reasoning_debug(location_id: str, event_name: str) -> dict:
+    if not db.get_location(location_id):
+        raise HTTPException(status_code=404, detail="Location not found")
+    row = db.get_event_reasoning_debug(location_id, event_name)
+    if not row:
+        return {"error": "No reasoning found for this event"}
+    return {
+        "event_name": row["event_name"],
+        "relevance_score": row["relevance_score"],
+        "crowd_type": row["crowd_type"],
+        "reason": row["reason"],
+        "include": bool(row["include"]),
+        "scored_at": row["scored_at"],
+        "prompt_used": row.get("prompt_used"),
+        "raw_llm_response": row.get("raw_llm_response"),
+    }
+
+
+@router.get("/locations/{location_id}/signals/day")
+def signals_day(location_id: str, date: str) -> dict:
+    """Return deduplicated signals active on a date with start/end hour ranges."""
+    if not db.get_location(location_id):
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    from collections import defaultdict
+
+    all_signals = db.get_processed_signals_for_date(location_id, date)
+
+    import json
+    
+    # Group by signal label → aggregate hours
+    grouped: dict = defaultdict(lambda: {
+        "signal_type": "",
+        "label": "",
+        "uplift_pct": 0.0,
+        "confidence": 0.0,
+        "distance_km": None,
+        "source_url": "",
+        "extra": {},
+        "hours": [],
+    })
+
+    for s in all_signals:
+        key = s.get("label") or s.get("signal_type", "unknown")
+        g = grouped[key]
+        g["signal_type"] = s.get("signal_type", "")
+        g["label"] = key
+        g["uplift_pct"] = max(g["uplift_pct"], abs(float(s.get("uplift_pct", 0))))
+        if float(s.get("uplift_pct", 0)) < 0:
+            g["uplift_pct"] = -g["uplift_pct"]
+        g["confidence"] = max(g["confidence"], float(s.get("confidence", 0)))
+        g["distance_km"] = s.get("distance_km") or g["distance_km"]
+        g["source_url"] = s.get("source_url") or g["source_url"]
+        
+        # Unpack extra_json
+        ej = s.get("extra_json")
+        if ej:
+            try:
+                g["extra"].update(json.loads(ej))
+            except json.JSONDecodeError:
+                pass
+
+        fdt = s.get("forecast_dt", "")
+        if len(fdt) >= 13:
+            h = int(fdt[11:13])
+            g["hours"].append(h)
+
+    signals_out = []
+    for key, g in grouped.items():
+        hours = sorted(set(g["hours"]))
+        # For signals that provided explicit bounds in extra_json (like weather or daily signals)
+        start_hour = g["extra"].get("start_hour", hours[0] if hours else 0)
+        end_hour = g["extra"].get("end_hour", hours[-1] if hours else 23)
+        
+        sig_data = {
+            "label": g["label"],
+            "signal_type": g["signal_type"],
+            "uplift_pct": round(g["uplift_pct"], 4),
+            "confidence": round(g["confidence"], 2),
+            "distance_km": g["distance_km"],
+            "source_url": g["source_url"],
+            "start_hour": start_hour,
+            "end_hour": end_hour,
+            "description": g["extra"].get("description"),
+        }
+        
+        # Inherit extra weather fields if present
+        for f in ["temp_low", "temp_high", "total_rain_mm", "conditions", "outlier", "outlier_hours", "outlier_label"]:
+            if f in g["extra"]:
+                sig_data[f] = g["extra"][f]
+                
+        signals_out.append(sig_data)
+
+    # Get the brief for this date
+    brief_text = ""
+    try:
+        brief_row = db.get_daily_brief(location_id, date)
+        if brief_row:
+            brief_text = brief_row.get("brief_text", "")
+    except Exception:
+        pass
+
+    positive_count = sum(1 for s in signals_out if s["uplift_pct"] > 0)
+    negative_count = sum(1 for s in signals_out if s["uplift_pct"] < 0)
+
+    return {
+        "date": date,
+        "signals": signals_out,
+        "brief": brief_text,
+        "positive_count": positive_count,
+        "negative_count": negative_count,
+        "total_signals": len(signals_out),
+    }
+
+

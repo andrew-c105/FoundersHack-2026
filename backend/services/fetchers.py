@@ -161,8 +161,6 @@ def fetch_eventbrite_nearby(lat: float, lng: float) -> dict[str, Any]:
         return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": events_out}
     except Exception:
         return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": _demo_events(lat, lng)}
-    except Exception:
-        return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": _demo_events(lat, lng)}
 
 
 def _demo_events(lat: float, lng: float) -> list[dict[str, Any]]:

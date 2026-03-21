@@ -55,17 +55,28 @@ Sentence 2: The main signal driving this and why.
 Sentence 3: The staffing recommendation using max_staff as the ceiling.
 """
 
-    key = settings.google_gemini_api_key
+    key = settings.openrouter_api_key
     if not key:
         return _template_brief(payload)
 
     try:
-        import google.generativeai as genai
+        import requests
 
-        genai.configure(api_key=key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        resp = model.generate_content(prompt)
-        text = (resp.text or "").strip()
+        resp = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "qwen/qwen3-235b-a22b",
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        text = data["choices"][0]["message"].get("content", "").strip()
         if text:
             db.save_daily_brief(location_id, target_date, text)
             return text

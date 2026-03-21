@@ -115,9 +115,28 @@ def init_db() -> None:
                 FOREIGN KEY (location_id) REFERENCES locations(id)
             );
 
+            CREATE TABLE IF NOT EXISTS event_reasoning (
+                id                  TEXT PRIMARY KEY,
+                location_id         TEXT NOT NULL,
+                event_name          TEXT NOT NULL,
+                event_date          TEXT,
+                relevance_score     REAL NOT NULL,
+                crowd_type          TEXT NOT NULL,
+                reason              TEXT NOT NULL,
+                include             INTEGER NOT NULL,
+                raw_llm_response    TEXT,
+                prompt_used         TEXT,
+                scored_at           TEXT NOT NULL,
+                input_events_count  INTEGER,
+                included_count      INTEGER,
+                excluded_count      INTEGER,
+                FOREIGN KEY (location_id) REFERENCES locations(id)
+            );
+
             CREATE INDEX IF NOT EXISTS idx_raw_loc_type ON raw_signals(location_id, signal_type);
             CREATE INDEX IF NOT EXISTS idx_proc_loc_dt ON processed_signals(location_id, forecast_dt);
             CREATE INDEX IF NOT EXISTS idx_pred_loc_dt ON predictions(location_id, forecast_dt);
+            CREATE INDEX IF NOT EXISTS idx_event_reasoning_loc ON event_reasoning(location_id);
             """
         )
 
@@ -287,6 +306,21 @@ def get_processed_signals_for_hour(location_id: str, forecast_dt_iso: str) -> li
             WHERE location_id = ? AND forecast_dt = ?
             """,
             (location_id, forecast_dt_iso),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_processed_signals_for_date(location_id: str, date_str: str) -> list[dict[str, Any]]:
+    """Get all processed signals for a given date (YYYY-MM-DD prefix match)."""
+    with db_session() as conn:
+        rows = conn.execute(
+            """
+            SELECT signal_type, forecast_dt, uplift_pct, confidence, label, distance_km, source_url, extra_json
+            FROM processed_signals
+            WHERE location_id = ? AND forecast_dt LIKE ?
+            ORDER BY forecast_dt
+            """,
+            (location_id, f"{date_str}%"),
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -463,3 +497,77 @@ def get_map_signals(location_id: str) -> list[dict[str, Any]]:
             (location_id,),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def save_event_reasoning(rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    with db_session() as conn:
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO event_reasoning (
+                id, location_id, event_name, event_date,
+                relevance_score, crowd_type, reason, include,
+                raw_llm_response, prompt_used, scored_at,
+                input_events_count, included_count, excluded_count
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    r["id"],
+                    r["location_id"],
+                    r["event_name"],
+                    r.get("event_date"),
+                    r["relevance_score"],
+                    r["crowd_type"],
+                    r["reason"],
+                    1 if r["include"] else 0,
+                    r.get("raw_llm_response"),
+                    r.get("prompt_used"),
+                    r["scored_at"],
+                    r.get("input_events_count"),
+                    r.get("included_count"),
+                    r.get("excluded_count"),
+                )
+                for r in rows
+            ],
+        )
+
+
+def get_event_reasoning(
+    location_id: str, event_date: Optional[str] = None
+) -> list[dict[str, Any]]:
+    q = """
+        SELECT event_name, relevance_score, crowd_type,
+               reason, include, scored_at, event_date
+        FROM   event_reasoning
+        WHERE  location_id = ?
+    """
+    params: list[Any] = [location_id]
+    if event_date:
+        q += " AND event_date = ?"
+        params.append(event_date)
+    q += " ORDER BY relevance_score DESC"
+    with db_session() as conn:
+        rows = conn.execute(q, params).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_event_reasoning_debug(
+    location_id: str, event_name: str
+) -> Optional[dict[str, Any]]:
+    with db_session() as conn:
+        row = conn.execute(
+            """
+            SELECT * FROM event_reasoning
+            WHERE  location_id = ?
+            AND    event_name  = ?
+            ORDER  BY scored_at DESC
+            LIMIT  1
+            """,
+            (location_id, event_name),
+        ).fetchone()
+    if row:
+        return dict(row)
+    return None
+

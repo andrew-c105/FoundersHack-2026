@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 const nav = [
   { to: "/today", label: "Today's brief" },
   { to: "/forecast", label: "Monthly forecast" },
-  { to: "/map", label: "Signal map" },
   { to: "/accuracy", label: "Accuracy" },
   { to: "/settings", label: "Settings" },
 ];

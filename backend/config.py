@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     eventbrite_token: str = ""
     transport_nsw_api_key: str = ""
     ticketmaster_api_key: str = ""
+    openrouter_api_key: str = ""
 
     data_dir: Path = Path(__file__).resolve().parent / "data"
     models_dir: Path = Path(__file__).resolve().parent / "models"
