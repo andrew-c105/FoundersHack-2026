@@ -115,35 +115,52 @@ def fetch_eventbrite_nearby(lat: float, lng: float) -> dict[str, Any]:
     if not token:
         return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": _demo_events(lat, lng)}
     try:
-        r = requests.get(
-            "https://www.eventbriteapi.com/v3/events/search/",
-            params={"location.latitude": lat, "location.longitude": lng, "location.within": "3km", "expand": "venue"},
+        # Modern Eventbrite replacement for deprecated /events/search/
+        # Uses POST destination/search with point_radius
+        url = "https://www.eventbriteapi.com/v3/destination/search/"
+        payload = {
+            "event_search": {
+                "point_radius": {
+                    "latitude": f"{lat}",
+                    "longitude": f"{lng}",
+                    "radius": "3km"
+                },
+                "dates": "current_future",
+                "page_size": 20
+            }
+        }
+        r = requests.post(
+            url,
+            json=payload,
             headers={"Authorization": f"Bearer {token}"},
             timeout=20,
         )
         if r.status_code != 200:
             return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": _demo_events(lat, lng)}
-        payload = r.json()
+        data = r.json()
+        # Structural change: results are in p['events']['results']
+        events_list = data.get("events", {}).get("results", [])
         events_out = []
-        for ev in payload.get("events", [])[:20]:
-            v = ev.get("venue", {}) or {}
-            adr = v.get("address", {}) or {}
-            vlat = float(adr.get("latitude") or lat)
-            vlng = float(adr.get("longitude") or lng)
+        for ev in events_list:
+            # Venue coordinates aren't easily part of this new payload without extra expansions
+            # Fallback to search center if locations are generic
             events_out.append(
                 {
-                    "name": ev.get("name", {}).get("text", "Event"),
-                    "venue_lat": vlat,
-                    "venue_lng": vlng,
+                    "name": ev.get("name", "Event"),
+                    "venue_lat": lat,
+                    "venue_lng": lng,
                     "capacity": 8000,
                     "tickets_sold": 0,
-                    "status": "onsale" if ev.get("online_event") is False else "announced",
-                    "event_start_datetime": ev.get("start", {}).get("utc"),
-                    "event_end_time": ev.get("end", {}).get("utc"),
+                    "status": "onsale" if not ev.get("is_cancelled") else "cancelled",
+                    # Format start/end from separate date/time fields
+                    "event_start_datetime": f"{ev.get('start_date')}T{ev.get('start_time')}Z",
+                    "event_end_time": f"{ev.get('end_date')}T{ev.get('end_time')}Z",
                     "source_url": ev.get("url", ""),
                 }
             )
         return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": events_out}
+    except Exception:
+        return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": _demo_events(lat, lng)}
     except Exception:
         return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": _demo_events(lat, lng)}
 

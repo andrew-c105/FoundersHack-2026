@@ -23,9 +23,9 @@ def process_weather_signal(raw_json: dict[str, Any], location_id: str) -> list[d
         if dt:
             key = format_forecast_dt(dt)
             weather_map[key] = {
-                "temp": float(temps[i]) if i < len(temps) else 20.0,
-                "precip": float(precips[i]) if i < len(precips) else 0.0,
-                "code": int(codes[i]) if i < len(codes) else 0,
+                "temp": float(temps[i]) if (i < len(temps) and temps[i] is not None) else 20.0,
+                "precip": float(precips[i]) if (i < len(precips) and precips[i] is not None) else 0.0,
+                "code": int(codes[i]) if (i < len(codes) and codes[i] is not None) else 0,
                 "original_time": t
             }
 
