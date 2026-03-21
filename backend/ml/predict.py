@@ -1,0 +1,88 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
+
+import pandas as pd
+
+import database as db
+from ml.training import load_model
+from preprocessors.common import format_forecast_dt
+
+
+def next_30_days_hourly(start: Optional[datetime] = None):
+    if start is None:
+        start = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    for i in range(30 * 24):
+        yield start + timedelta(hours=i)
+
+
+def predict_next_30_days(location_id: str) -> list[dict[str, Any]]:
+    model = load_model(location_id)
+    predictions: list[dict[str, Any]] = []
+
+    for dt in next_30_days_hourly():
+        dow = dt.weekday()
+        hour = dt.hour
+        key = format_forecast_dt(dt)
+
+        event_uplift = db.get_signal_uplift(location_id, ["ticketmaster", "eventbrite"], key)
+        event_conf = db.get_signal_confidence(location_id, ["ticketmaster", "eventbrite"], key, 0.1)
+        weather_uplift = db.get_signal_uplift(location_id, ["open_meteo"], key)
+        weather_conf = db.get_signal_confidence(location_id, ["open_meteo"], key, 0.5)
+        competitor_shift = db.get_signal_uplift(location_id, ["google_places"], key)
+        transport_impact = db.get_signal_uplift(location_id, ["transport_nsw"], key) + db.get_signal_uplift(
+            location_id, ["live_traffic"], key
+        )
+        school_holiday = db.get_signal_uplift(location_id, ["static_school"], key)
+        public_holiday = db.get_signal_uplift(location_id, ["static_holiday"], key)
+        sporting_fixture = db.get_signal_uplift(location_id, ["static_sport"], key)
+        uni_calendar = db.get_signal_uplift(location_id, ["static_uni"], key)
+
+        features = {
+            "day_of_week": dow,
+            "hour": hour,
+            "event_uplift": event_uplift,
+            "event_conf": event_conf,
+            "weather_uplift": weather_uplift,
+            "weather_conf": weather_conf,
+            "competitor_shift": competitor_shift,
+            "transport_impact": transport_impact,
+            "school_holiday": school_holiday,
+            "public_holiday": public_holiday,
+            "sporting_fixture": sporting_fixture,
+            "uni_calendar": uni_calendar,
+        }
+
+        predicted_score = float(model.predict(pd.DataFrame([features]))[0])
+        predicted_score = round(max(0, min(100, predicted_score)))
+
+        baseline_score = db.get_popular_times_baseline(location_id, dow, hour)
+        if baseline_score and baseline_score > 0:
+            deviation_pct = round((predicted_score - baseline_score) / baseline_score * 100)
+        else:
+            deviation_pct = 0
+
+        confidence = round(
+            (features["event_conf"] + features["weather_conf"] + 0.99 + 0.99) / 4,
+            2,
+        )
+
+        predictions.append(
+            {
+                "location_id": location_id,
+                "forecast_dt": key,
+                "busyness_index": predicted_score,
+                "baseline_score": baseline_score,
+                "deviation_pct": deviation_pct,
+                "confidence": confidence,
+            }
+        )
+
+    db.write_predictions(predictions)
+    return predictions
+
+
+def get_alerts(location_id: str, threshold_pct: int = 30) -> list[dict[str, Any]]:
+    preds = db.get_predictions_for_location(location_id)
+    return [p for p in preds if p["deviation_pct"] >= threshold_pct]

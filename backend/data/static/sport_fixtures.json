@@ -1,0 +1,18 @@
+[
+  {
+    "match_date": "2026-03-22",
+    "home_team": "Sydney Swans",
+    "away_team": "Collingwood",
+    "venue_lat": -33.8688,
+    "venue_lng": 151.2093,
+    "source_url": "https://www.afl.com.au/fixture"
+  },
+  {
+    "match_date": "2026-03-28",
+    "home_team": "Roosters",
+    "away_team": "Rabbitohs",
+    "venue_lat": -33.8915,
+    "venue_lng": 151.2767,
+    "source_url": "https://www.nrl.com/draw/"
+  }
+]

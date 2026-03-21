@@ -1,0 +1,26 @@
+[
+  {
+    "institution": "UNSW",
+    "campus_lat": -33.9173,
+    "campus_lng": 151.2313,
+    "event_type": "exam_period",
+    "start_date": "2026-04-28",
+    "end_date": "2026-05-09"
+  },
+  {
+    "institution": "UNSW",
+    "campus_lat": -33.9173,
+    "campus_lng": 151.2313,
+    "event_type": "o_week",
+    "start_date": "2026-03-16",
+    "end_date": "2026-03-20"
+  },
+  {
+    "institution": "USYD",
+    "campus_lat": -33.8882,
+    "campus_lng": 151.1871,
+    "event_type": "exam_period",
+    "start_date": "2026-06-02",
+    "end_date": "2026-06-13"
+  }
+]
