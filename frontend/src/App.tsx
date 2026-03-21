@@ -3,7 +3,6 @@ import Layout from "./components/Layout";
 import Landing from "./pages/Landing";
 import Onboarding from "./pages/Onboarding";
 import TodayBrief from "./pages/TodayBrief";
-import MonthlyForecast from "./pages/MonthlyForecast";
 import SettingsPage from "./pages/SettingsPage";
 import AccuracyPage from "./pages/AccuracyPage";
 
@@ -14,7 +13,6 @@ export default function App() {
       <Route path="/onboarding" element={<Onboarding />} />
       <Route element={<Layout />}>
         <Route path="/today" element={<TodayBrief />} />
-        <Route path="/forecast" element={<MonthlyForecast />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/accuracy" element={<AccuracyPage />} />
       </Route>

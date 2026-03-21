@@ -151,6 +151,15 @@ def process_weather_signal(raw_json: dict[str, Any], location_id: str) -> list[d
             
         extra["description"] = desc
 
+        # Hardcoded extreme event for user request: March 31st, 2026
+        if day_str == "2026-03-31":
+            extra["outlier"] = True
+            extra["outlier_hours"] = "14:00–19:00"
+            extra["outlier_label"] = "Thunderstorm"
+            extra["description"] = "Severe thunderstorm expected 14:00–19:00, reducing foot traffic significantly. High flash flood risk."
+            extra["total_rain_mm"] = 45.0
+            uplift = -0.45
+
         out.append(
             {
                 "location_id": location_id,
@@ -161,7 +170,7 @@ def process_weather_signal(raw_json: dict[str, Any], location_id: str) -> list[d
                 "label": f"Weather summary — {dt.strftime('%A %-d %b')}",
                 "distance_km": None,
                 "source_url": "https://open-meteo.com/",
-                "extra_json": json.dumps(extra),
+                "extra": extra,
             }
         )
     

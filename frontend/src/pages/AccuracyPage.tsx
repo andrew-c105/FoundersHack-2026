@@ -48,30 +48,30 @@ export default function AccuracyPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-white">Accuracy history</h1>
-        <p className="text-sm text-slate-400">
+        <h1 className="font-display text-2xl font-bold text-gray-900">Accuracy history</h1>
+        <p className="text-sm text-gray-500">
           Daily average predicted index vs Popular Times baseline (proxy for “actual” rhythm).
         </p>
       </div>
       {lastMae != null && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 text-sm">
-          Last training MAE (hold-out): <span className="font-mono text-cyan-300">{lastMae.toFixed(2)}</span>{" "}
+        <div className="rounded-2xl border border-gray-100 bg-white shadow-sm px-5 py-4 text-sm text-gray-700">
+          Last training MAE (hold-out): <span className="font-mono text-blue-600 font-semibold">{lastMae.toFixed(2)}</span>{" "}
           busyness points
         </div>
       )}
-      <div className="h-80 rounded-2xl border border-slate-800 bg-slate-900/40 p-2">
+      <div className="h-[22rem] rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
         {byDay.length === 0 ? (
-          <p className="p-4 text-slate-500">No prediction data.</p>
+          <p className="p-4 text-gray-500">No prediction data.</p>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={byDay}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 10 }} />
-              <YAxis tick={{ fill: "#94a3b8" }} domain={[0, 100]} />
-              <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155" }} />
-              <Legend />
-              <Line type="monotone" dataKey="predicted" stroke="#22d3ee" dot={false} name="Predicted avg" />
-              <Line type="monotone" dataKey="baseline" stroke="#64748b" dot={false} name="Baseline avg" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 10 }} />
+              <YAxis tick={{ fill: "#64748b" }} domain={[0, 100]} />
+              <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px" }} labelStyle={{ color: "#0f172a", fontWeight: "bold", marginBottom: "4px" }} />
+              <Legend wrapperStyle={{ paddingTop: "20px" }} />
+              <Line type="monotone" dataKey="predicted" stroke="#3b82f6" strokeWidth={2} dot={false} name="Predicted avg" />
+              <Line type="monotone" dataKey="baseline" stroke="#94a3b8" strokeWidth={2} dot={false} name="Baseline avg" />
             </LineChart>
           </ResponsiveContainer>
         )}
