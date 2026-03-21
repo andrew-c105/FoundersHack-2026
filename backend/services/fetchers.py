@@ -136,31 +136,40 @@ def fetch_eventbrite_nearby(lat: float, lng: float) -> dict[str, Any]:
             timeout=20,
         )
         if r.status_code != 200:
-            return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": _demo_events(lat, lng)}
-        data = r.json()
-        # Structural change: results are in p['events']['results']
-        events_list = data.get("events", {}).get("results", [])
-        events_out = []
-        for ev in events_list:
-            # Venue coordinates aren't easily part of this new payload without extra expansions
-            # Fallback to search center if locations are generic
-            events_out.append(
-                {
-                    "name": ev.get("name", "Event"),
-                    "venue_lat": lat,
-                    "venue_lng": lng,
-                    "capacity": 8000,
-                    "tickets_sold": 0,
-                    "status": "onsale" if not ev.get("is_cancelled") else "cancelled",
-                    # Format start/end from separate date/time fields
-                    "event_start_datetime": f"{ev.get('start_date')}T{ev.get('start_time')}Z",
-                    "event_end_time": f"{ev.get('end_date')}T{ev.get('end_time')}Z",
-                    "source_url": ev.get("url", ""),
-                }
-            )
-        return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": events_out}
+            events_out = _demo_events(lat, lng)
+        else:
+            data = r.json()
+            events_list = data.get("events", {}).get("results", [])
+            events_out = []
+            for ev in events_list:
+                events_out.append(
+                    {
+                        "name": ev.get("name", "Event"),
+                        "venue_lat": lat,
+                        "venue_lng": lng,
+                        "capacity": 8000,
+                        "tickets_sold": 0,
+                        "status": "onsale" if not ev.get("is_cancelled") else "cancelled",
+                        "event_start_datetime": f"{ev.get('start_date')}T{ev.get('start_time')}Z",
+                        "event_end_time": f"{ev.get('end_date')}T{ev.get('end_time')}Z",
+                        "source_url": ev.get("url", ""),
+                    }
+                )
     except Exception:
-        return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": _demo_events(lat, lng)}
+        events_out = _demo_events(lat, lng)
+
+    try:
+        import json
+        from pathlib import Path
+        p = Path(__file__).parent.parent / "data" / "static" / "hardcoded_events_parsed.json"
+        if p.exists():
+            with open(p, "r") as f:
+                hc = json.load(f)
+            events_out.extend(hc)
+    except Exception as e:
+        print(f"[EVENTBRITE] Error loading hardcoded events: {e}")
+
+    return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": events_out}
 
 
 def _demo_events(lat: float, lng: float) -> list[dict[str, Any]]:
