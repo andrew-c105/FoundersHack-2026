@@ -9,35 +9,70 @@ from config import settings
 
 
 def geocode_address(address: str) -> tuple[float, float, str, str]:
-    """Nominatim (no key). Returns lat, lng, postcode guess, state guess."""
+    """Geocode using Google Geocoding API (preferred) or Nominatim fallback.
+    Returns lat, lng, postcode, state."""
     if not address.strip():
         return -33.8688, 151.2093, "2000", "NSW"
-    r = requests.get(
-        "https://nominatim.openstreetmap.org/search",
-        params={"q": address, "format": "json", "limit": 1},
-        headers={"User-Agent": "FoundersHackForecast/1.0"},
-        timeout=15,
-    )
-    r.raise_for_status()
-    data = r.json()
-    if not data:
-        return -33.8688, 151.2093, "2000", "NSW"
-    lat = float(data[0]["lat"])
-    lng = float(data[0]["lon"])
-    display = data[0].get("display_name", "")
-    postcode = "2000"
-    state = "NSW"
-    parts = display.split(", ")
-    for p in parts:
-        if p.isdigit() and len(p) == 4:
-            postcode = p
-    if "Victoria" in display:
-        state = "VIC"
-    elif "Queensland" in display:
-        state = "QLD"
-    elif "New South Wales" in display or "NSW" in display:
+
+    key = settings.google_api_key
+    if key:
+        try:
+            r = requests.get(
+                "https://maps.googleapis.com/maps/api/geocode/json",
+                params={"address": address, "key": key},
+                timeout=15,
+            )
+            data = r.json()
+            if data.get("status") == "OK" and data.get("results"):
+                loc = data["results"][0]["geometry"]["location"]
+                lat = float(loc["lat"])
+                lng = float(loc["lng"])
+                postcode = "2000"
+                state = "NSW"
+                for comp in data["results"][0].get("address_components", []):
+                    types = comp.get("types", [])
+                    if "postal_code" in types:
+                        postcode = comp["short_name"]
+                    if "administrative_area_level_1" in types:
+                        sn = comp["short_name"]
+                        if sn in ("VIC", "QLD", "NSW", "ACT", "WA", "SA", "TAS", "NT"):
+                            state = sn
+                print(f"[GEOCODE] Google resolved '{address}' → lat={lat}, lng={lng}, postcode={postcode}, state={state}")
+                return lat, lng, postcode, state
+        except Exception as e:
+            print(f"[GEOCODE] Google geocoding failed ({e}), falling back to Nominatim")
+
+    # Nominatim fallback
+    try:
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": address, "format": "json", "limit": 1},
+            headers={"User-Agent": "FoundersHackForecast/1.0"},
+            timeout=15,
+        )
+        r.raise_for_status()
+        data = r.json()
+        if not data:
+            return -33.8688, 151.2093, "2000", "NSW"
+        lat = float(data[0]["lat"])
+        lng = float(data[0]["lon"])
+        display = data[0].get("display_name", "")
+        postcode = "2000"
         state = "NSW"
-    return lat, lng, postcode, state
+        parts = display.split(", ")
+        for p in parts:
+            if p.isdigit() and len(p) == 4:
+                postcode = p
+        if "Victoria" in display:
+            state = "VIC"
+        elif "Queensland" in display:
+            state = "QLD"
+        elif "New South Wales" in display or "NSW" in display:
+            state = "NSW"
+        print(f"[GEOCODE] Nominatim resolved '{address}' → lat={lat}, lng={lng}, postcode={postcode}, state={state}")
+        return lat, lng, postcode, state
+    except Exception:
+        return -33.8688, 151.2093, "2000", "NSW"
 
 
 def fetch_open_meteo(lat: float, lng: float) -> dict[str, Any]:
