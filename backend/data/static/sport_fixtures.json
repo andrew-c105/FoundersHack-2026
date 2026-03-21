@@ -1,18 +1,189 @@
 [
   {
-    "match_date": "2026-03-22",
-    "home_team": "Sydney Swans",
-    "away_team": "Collingwood",
-    "venue_lat": -33.8688,
-    "venue_lng": 151.2093,
-    "source_url": "https://www.afl.com.au/fixture"
+    "competition": "AFL",
+    "match_date": "2026-07-20",
+    "match_date_note": "Week of Monday 20 July, exact date TBC",
+    "round": 20,
+    "home_team": "GWS GIANTS",
+    "away_team": "Sydney Swans",
+    "stadium": "ENGIE Stadium",
+    "venue_lat": -33.8368,
+    "venue_lng": 151.0695
   },
   {
+    "competition": "AFL",
+    "match_date": "2026-08-03",
+    "match_date_note": "Week of Monday 3 August, exact date TBC",
+    "round": 22,
+    "home_team": "Sydney Swans",
+    "away_team": "Port Adelaide",
+    "stadium": "SCG",
+    "venue_lat": -33.8914,
+    "venue_lng": 151.2249
+  },
+  {
+    "competition": "AFL",
+    "match_date": "2026-08-10",
+    "match_date_note": "Week of Monday 10 August, exact date TBC",
+    "round": 23,
+    "home_team": "GWS GIANTS",
+    "away_team": "West Coast Eagles",
+    "stadium": "ENGIE Stadium",
+    "venue_lat": -33.8368,
+    "venue_lng": 151.0695
+  },
+  {
+    "competition": "AFL",
+    "match_date": "2026-08-17",
+    "match_date_note": "Week of Monday 17 August, exact date TBC",
+    "round": 24,
+    "home_team": "Sydney Swans",
+    "away_team": "North Melbourne",
+    "stadium": "SCG",
+    "venue_lat": -33.8914,
+    "venue_lng": 151.2249
+  },
+  {
+    "competition": "NRL",
     "match_date": "2026-03-28",
-    "home_team": "Roosters",
-    "away_team": "Rabbitohs",
-    "venue_lat": -33.8915,
-    "venue_lng": 151.2767,
-    "source_url": "https://www.nrl.com/draw/"
+    "match_time": "15:00",
+    "home_team": "Bulldogs",
+    "away_team": "Knights",
+    "stadium": "Accor Stadium",
+    "venue_lat": -33.8474,
+    "venue_lng": 151.0631
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-03-28",
+    "match_time": "17:30",
+    "home_team": "Panthers",
+    "away_team": "Eels",
+    "stadium": "CommBank Stadium",
+    "venue_lat": -33.8134,
+    "venue_lng": 150.9942
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-03-26",
+    "match_time": "20:00",
+    "home_team": "Sea Eagles",
+    "away_team": "Roosters",
+    "stadium": "4 Pines Park",
+    "venue_lat": -33.7956,
+    "venue_lng": 151.2834
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-04-03",
+    "match_time": "16:05",
+    "home_team": "Rabbitohs",
+    "away_team": "Bulldogs",
+    "stadium": "Accor Stadium",
+    "venue_lat": -33.8474,
+    "venue_lng": 151.0631
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-04-03",
+    "match_time": "20:00",
+    "home_team": "Panthers",
+    "away_team": "Storm",
+    "stadium": "CommBank Stadium",
+    "venue_lat": -33.8134,
+    "venue_lng": 150.9942
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-04-04",
+    "match_time": "17:30",
+    "home_team": "Dragons",
+    "away_team": "Cowboys",
+    "stadium": "Jubilee Stadium",
+    "venue_lat": -33.9553,
+    "venue_lng": 151.1630
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-04-05",
+    "match_time": "16:05",
+    "home_team": "Knights",
+    "away_team": "Raiders",
+    "stadium": "McDonald Jones Stadium",
+    "venue_lat": -32.9272,
+    "venue_lng": 151.7745
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-04-06",
+    "match_time": "16:05",
+    "home_team": "Eels",
+    "away_team": "Tigers",
+    "stadium": "CommBank Stadium",
+    "venue_lat": -33.8134,
+    "venue_lng": 150.9942
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-04-09",
+    "match_time": "19:50",
+    "home_team": "Bulldogs",
+    "away_team": "Panthers",
+    "stadium": "Accor Stadium",
+    "venue_lat": -33.8474,
+    "venue_lng": 151.0631
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-04-10",
+    "match_time": "18:00",
+    "home_team": "Dragons",
+    "away_team": "Sea Eagles",
+    "stadium": "WIN Stadium",
+    "venue_lat": -34.4248,
+    "venue_lng": 150.8977
+  },
+  {
+    "competition": "NRL",
+    "match_date": "2026-04-12",
+    "match_time": "16:05",
+    "home_team": "Tigers",
+    "away_team": "Knights",
+    "stadium": "Campbelltown Sports Stadium",
+    "venue_lat": -34.0657,
+    "venue_lng": 150.8187
+  },
+  {
+    "competition": "A-League",
+    "match_date": "2026-03-22",
+    "match_time": "15:00",
+    "round": 22,
+    "home_team": "Sydney FC",
+    "away_team": "Newcastle Jets FC",
+    "stadium": "Allianz Stadium",
+    "venue_lat": -33.8731,
+    "venue_lng": 151.2231
+  },
+  {
+    "competition": "A-League",
+    "match_date": "2026-04-18",
+    "match_time": "19:35",
+    "round": 25,
+    "home_team": "Sydney FC",
+    "away_team": "Perth Glory FC",
+    "stadium": "Allianz Stadium",
+    "venue_lat": -33.8731,
+    "venue_lng": 151.2231
+  },
+  {
+    "competition": "A-League",
+    "match_date": "2026-04-26",
+    "match_time": "15:00",
+    "round": 26,
+    "home_team": "Sydney FC",
+    "away_team": "Auckland FC",
+    "stadium": "Allianz Stadium",
+    "venue_lat": -33.8731,
+    "venue_lng": 151.2231
   }
 ]
