@@ -157,14 +157,38 @@ def llm_relevance_filter(
 
             batch_scored = json.loads(raw_text)
             if isinstance(batch_scored, list):
+                for item in batch_scored:
+                    print(
+                        "[RELEVANCE] verdict | "
+                        f"{item.get('event_name')} | "
+                        f"include={item.get('include')} | "
+                        f"relevance_score={item.get('relevance_score')} | "
+                        f"crowd_type={item.get('crowd_type')}"
+                    )
                 all_scored_events.extend(batch_scored)
             else:
                 print(f"[RELEVANCE] Error: LLM returned non-list for batch {i//BATCH_SIZE + 1}")
-                all_scored_events.extend(_fallback_scores(batch))
+                fb = _fallback_scores(batch)
+                for item in fb:
+                    print(
+                        "[RELEVANCE] verdict (fallback) | "
+                        f"{item.get('event_name')} | include={item.get('include')} | "
+                        f"relevance_score={item.get('relevance_score')} | "
+                        f"crowd_type={item.get('crowd_type')}"
+                    )
+                all_scored_events.extend(fb)
 
         except Exception as exc:
             print(f"[RELEVANCE] Batch {i//BATCH_SIZE + 1} failed | Type: {type(exc).__name__} | Msg: {exc}")
-            all_scored_events.extend(_fallback_scores(batch))
+            fb = _fallback_scores(batch)
+            for item in fb:
+                print(
+                    "[RELEVANCE] verdict (fallback) | "
+                    f"{item.get('event_name')} | include={item.get('include')} | "
+                    f"relevance_score={item.get('relevance_score')} | "
+                    f"crowd_type={item.get('crowd_type')}"
+                )
+            all_scored_events.extend(fb)
             all_raw_texts.append(f"ERROR: {exc}")
 
     # Final summary and persistence

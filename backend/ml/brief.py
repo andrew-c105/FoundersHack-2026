@@ -69,7 +69,7 @@ Sentence 3: The staffing recommendation using max_staff as the ceiling.
                 "Content-Type": "application/json",
             },
             json={
-                "model": "qwen/qwen3-235b-a22b",
+                "model": "google/gemini-3.1-flash-lite-preview",
                 "messages": [{"role": "user", "content": prompt}],
             },
             timeout=30,
