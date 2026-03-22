@@ -56,8 +56,7 @@ def run_preprocessors(location_id: str, signal_type: str, raw_json: dict[str, An
         if len(result) > 10:
             print(f"  ... and {len(result) - 10} more rows")
         print(f"[PREPROCESSOR] END signal_type={signal_type!r}\n")
-        if result:
-            db.write_processed_signals(location_id, signal_type, result)
+        db.write_processed_signals(location_id, signal_type, result)
         return
 
     # ── All other signal types (unchanged) ────────────────────────
@@ -82,5 +81,4 @@ def run_preprocessors(location_id: str, signal_type: str, raw_json: dict[str, An
         print(f"  ... and {len(result) - 10} more rows")
     print(f"[PREPROCESSOR] END signal_type={signal_type!r}\n")
 
-    if result:
-        db.write_processed_signals(location_id, signal_type, result)
+    db.write_processed_signals(location_id, signal_type, result)

@@ -20,9 +20,9 @@ logger = logging.getLogger("relevance_filter")
 
 CROWD_CONFIDENCE_MODIFIER = {
     "transit": 1.0,
-    "mixed": 0.85,
-    "local": 0.70,
-    "destination": 0.40,
+    "mixed": 0.80,
+    "local": 0.50,
+    "destination": 0.20,
 }
 
 
@@ -30,55 +30,62 @@ def build_relevance_prompt(
     raw_events: list[dict[str, Any]], business_profile: dict[str, str]
 ) -> str:
     return f"""
-You are a demand analyst for a {business_profile['business_type']} called \
-{business_profile['business_name']} located at {business_profile['address']}.
+You are a demand analyst for a {business_profile['business_type']} called {business_profile['business_name']}.
 
-Your job is to evaluate which upcoming events in the area are likely to \
-meaningfully increase demand at this business.
+Your job is to evaluate which upcoming events will meaningfully increase spontaneous foot traffic and demand at this business.
 
-Key principle: Events that create TRANSIT crowds (people moving through an \
-area looking for food/drink) are relevant. Events that attract \
-DESTINATION-specific crowds (people going specifically for that experience \
-and unlikely to divert) are not relevant.
+### THE CORE QUESTION
+"Will this event cause a meaningful number of people who would not otherwise be nearby to walk past this business, feel hungry or thirsty, and be in a mindset where they would spontaneously enter a fast food restaurant?"
 
-*** IMPORTANT: Factor travel time into your decision ***
-The events now include `walk_minutes` and `transit_minutes` from the business.
-Events over 20 mins walking AND over 15 mins by transit should require a much stronger crowd spillover justification to be included. An author signing or niche cultural event at that distance should be excluded. A stadium event at that distance may still be included if transit spillover is likely.
+If the honest answer is no — exclude it. Default to exclusion, not inclusion.
 
-For a {business_profile['business_type']}, high relevance events include:
-- Large sporting events (crowds before/after games want quick food)
-- Street festivals and markets (general public foot traffic)
-- Concerts and shows ending late (hungry crowds leaving venues)
-- Public gatherings and parades
+### CATEGORIZATION GUIDELINES
 
-Low relevance events for a {business_profile['business_type']} include:
-- Fine dining or wine events (wrong demographic)
-- Private corporate functions (closed attendance)
-- Niche hobby events (small destination-specific crowds)
-- Art gallery openings (low foot traffic spillover)
+#### HIGH Relevance (Score 0.7–1.0, crowd_type: transit)
+- Large stadium/arena sporting events (AFL, NRL, Soccer, Cricket).
+- Major outdoor festivals, street markets, or parades with general public attendance.
+- Large concerts (1000+ capacity) especially with late finishers.
+- Public transport disruptions re-routing volumes of commuters.
+
+#### MEDIUM Relevance (Score 0.4–0.69, crowd_type: mixed)
+- Community markets or large-scale outdoor events with walk-up attendance.
+- Major public holidays with high street foot traffic expected.
+
+#### LOW / EXCLUDE (Score < 0.4, crowd_type: local or destination)
+- Professional networking, industry conferences, career fairs, corporate seminars.
+- Educational info sessions, university open days, MBA events.
+- Film clubs, book clubs, seniors' groups, hobby societies.
+- Art gallery openings, wine tastings, fine dining events.
+- Any event described as "niche", "professional", or "corporate".
+- Any event requiring registration, ticket purchase, or membership.
+- Any event with estimated attendance under 200 people.
+
+### DISTANCE PENALTY
+- If walk_minutes > 15 OR transit_minutes > 20, require an extremely strong justification (stadium-scale only).
+- A networking event at this distance is an automatic EXCLUDE.
 
 Events to evaluate:
 {json.dumps(raw_events, indent=2)}
 
-Return a JSON array only. No other text. No markdown. No backticks.
-Each item must have exactly these keys:
-- event_name (string — must exactly match the name in the input)
+Return a JSON array only. Each item must have:
+- event_name (string — exact match)
 - relevance_score (float 0.0 to 1.0)
-- relevance_reason (one sentence, plain English, no jargon)
-- crowd_type (exactly one of: transit, destination, local, mixed)
-- include (boolean — true if relevance_score >= 0.4)
+- relevance_reason (one sentence)
+- crowd_type (transit, destination, local, mixed)
+- include (boolean — true ONLY if relevance_score >= 0.65)
 """
 
 
 def _fallback_scores(raw_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Include all events with a neutral score when the LLM is unavailable."""
+    """Exclude all events by default when the LLM is unavailable."""
+    print("[RELEVANCE] WARNING: fallback triggered — LLM did not run")
     return [
         {
             "event_name": e.get("name", "Unknown"),
-            "relevance_score": 0.5,
-            "relevance_reason": "Could not score — defaulting to include",
+            "relevance_score": 0.0,
+            "relevance_reason": "Could not score — defaulting to exclude",
             "crowd_type": "mixed",
-            "include": True,
+            "include": False,
         }
         for e in raw_events
     ]
@@ -97,94 +104,103 @@ def llm_relevance_filter(
     if not raw_events:
         return []
 
-    prompt = build_relevance_prompt(raw_events, business_profile)
+    # Batch events to avoid token/credit limits (max 10 per call)
+    BATCH_SIZE = 10
+    all_scored_events: list[dict[str, Any]] = []
+    all_raw_texts: list[str] = []
 
-    logger.info(f"[RELEVANCE] Evaluating {len(raw_events)} events for {business_profile['business_name']}")
     print(f"\n{'='*60}")
     print(f"[RELEVANCE FILTER] {business_profile['business_name']} ({business_profile['business_type']})")
-    print(f"[RELEVANCE] Evaluating {len(raw_events)} events")
+    print(f"[RELEVANCE] Evaluating {len(raw_events)} total events in batches of {BATCH_SIZE}")
     print(f"{'='*60}")
 
     key = settings.openrouter_api_key
-    raw_text = ""
     if not key:
-        print("[RELEVANCE] No OPENROUTER_API_KEY — falling back to neutral scores")
-        scored_events = _fallback_scores(raw_events)
-    else:
+        print("[RELEVANCE] No OPENROUTER_API_KEY — falling back")
+        return _fallback_scores(raw_events)
+
+    for i in range(0, len(raw_events), BATCH_SIZE):
+        batch = raw_events[i : i + BATCH_SIZE]
+        prompt = build_relevance_prompt(batch, business_profile)
+        
+        print(f"\n[RELEVANCE] Batch {i//BATCH_SIZE + 1}: Processing {len(batch)} events (Prompt: {len(prompt)} chars)")
+        
         try:
             import requests
 
+            payload = {
+                "model": "google/gemini-3.1-flash-lite-preview",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 2048,
+                "temperature": 0.1,
+            }
+            
             resp = requests.post(
                 url="https://openrouter.ai/api/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {key}",
                     "Content-Type": "application/json",
                 },
-                json={
-                    "model": "qwen/qwen3-235b-a22b",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "reasoning": {"enabled": True},
-                },
-                timeout=60,
+                json=payload,
+                timeout=120,
             )
             resp.raise_for_status()
             data = resp.json()
             raw_text = data["choices"][0]["message"].get("content", "").strip()
+            all_raw_texts.append(raw_text)
 
-            # Strip markdown fences if model added them
             if raw_text.startswith("```"):
                 raw_text = raw_text.split("```")[1]
                 if raw_text.startswith("json"):
                     raw_text = raw_text[4:]
             raw_text = raw_text.strip()
 
-            scored_events = json.loads(raw_text)
+            batch_scored = json.loads(raw_text)
+            if isinstance(batch_scored, list):
+                all_scored_events.extend(batch_scored)
+            else:
+                print(f"[RELEVANCE] Error: LLM returned non-list for batch {i//BATCH_SIZE + 1}")
+                all_scored_events.extend(_fallback_scores(batch))
+
         except Exception as exc:
-            print(f"[RELEVANCE] Qwen call failed ({exc}) — falling back to neutral scores")
-            scored_events = _fallback_scores(raw_events)
-            raw_text = f"ERROR: {exc}"
+            print(f"[RELEVANCE] Batch {i//BATCH_SIZE + 1} failed | Type: {type(exc).__name__} | Msg: {exc}")
+            all_scored_events.extend(_fallback_scores(batch))
+            all_raw_texts.append(f"ERROR: {exc}")
 
-    included_count = sum(1 for e in scored_events if e.get("include"))
-    excluded_count = len(scored_events) - included_count
-
-    # Terminal log each result
-    for event in scored_events:
-        status = "INCLUDE" if event.get("include") else "EXCLUDE"
-        print(
-            f"\n  [{status}] {event.get('event_name')}\n"
-            f"    Score:      {event.get('relevance_score')}\n"
-            f"    Crowd type: {event.get('crowd_type')}\n"
-            f"    Reason:     {event.get('relevance_reason')}"
-        )
-
-    print(f"\n[RELEVANCE] Result: {included_count}/{len(scored_events)} events included")
+    # Final summary and persistence
+    included_count = sum(1 for e in all_scored_events if e.get("include"))
+    
+    # Terminal log result summary
+    print(f"\n[RELEVANCE] Final Result: {included_count}/{len(all_scored_events)} events included")
     print(f"{'='*60}\n")
 
     # Persist reasoning to database
     scored_at = datetime.now(timezone.utc).isoformat()
     reasoning_rows = []
-    for event in scored_events:
+    combined_raw_text = "\n---\n".join(all_raw_texts)
+    
+    for event in all_scored_events:
         reasoning_rows.append(
             {
                 "id": str(uuid.uuid4()),
                 "location_id": location_id,
                 "event_name": event.get("event_name", "Unknown"),
                 "event_date": event.get("event_date"),
-                "relevance_score": float(event.get("relevance_score", 0.5)),
+                "relevance_score": float(event.get("relevance_score", 0.0)),
                 "crowd_type": event.get("crowd_type", "mixed"),
                 "reason": event.get("relevance_reason", ""),
-                "include": bool(event.get("include", True)),
-                "raw_llm_response": raw_text if "raw_text" in dir() else None,
-                "prompt_used": prompt,
+                "include": bool(event.get("include", False)),
+                "raw_llm_response": combined_raw_text,
+                "prompt_used": "Multiple batches used",
                 "scored_at": scored_at,
                 "input_events_count": len(raw_events),
                 "included_count": included_count,
-                "excluded_count": excluded_count,
+                "excluded_count": len(all_scored_events) - included_count,
             }
         )
     db.save_event_reasoning(reasoning_rows)
 
-    return scored_events
+    return all_scored_events
 
 
 def get_crowd_confidence_modifier(crowd_type: str, transit_minutes: float = 0.0) -> float:
@@ -287,11 +303,12 @@ def llm_weather_relevance(
                 "Content-Type": "application/json",
             },
             json={
-                "model": "qwen/qwen3-235b-a22b",
+                "model": "google/gemini-3.1-flash-lite-preview",
                 "messages": [{"role": "user", "content": prompt}],
-                "reasoning": {"enabled": True},
+                "max_tokens": 1024,
+                "temperature": 0.1,
             },
-            timeout=60,
+            timeout=120,
         )
         resp.raise_for_status()
         data = resp.json()

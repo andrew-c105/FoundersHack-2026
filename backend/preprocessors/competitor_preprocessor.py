@@ -111,6 +111,7 @@ def process_competitor_signal(raw_json: dict[str, Any], location_id: str) -> lis
                     "uplift_pct": uplift,
                     "signal_conf": avg_conf,
                     "label": "Nearby competitor permanently closed",
+                    "description": "A nearby competitor has closed permanently — expect a sustained shift in local market share and increased visit frequency.",
                     "distance_km": None,
                     "source_url": "https://maps.google.com/",
                 }

@@ -251,7 +251,7 @@ export default function TodayBrief() {
             },
             {
               label: "Confidence",
-              value: conf === "—" ? "—" : `${Math.min(99, Math.round((conf + 0.1) * 100))}%`,
+              value: conf === "—" ? "—" : `${Math.round(conf * 100)}%`,
               tooltip: "The statistical certainty of this prediction based on data quality and signal strength."
             },
             {

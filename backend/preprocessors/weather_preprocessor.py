@@ -202,7 +202,7 @@ def process_weather_signal(raw_json: dict[str, Any], location_id: str) -> list[d
         # Blend confidences
         res = cached_or_default_results.get(day_str, {})
         impact_conf = float(res.get("impact_conf", 0.70))
-        final_conf = min(0.97, horizon_conf * impact_conf)
+        final_conf = min(0.99, horizon_conf * impact_conf)
         
         impact_direction = str(res.get("impact_direction", "neutral")).lower()
         impact_magnitude = float(res.get("impact_magnitude", 0.0))
@@ -242,6 +242,7 @@ def process_weather_signal(raw_json: dict[str, Any], location_id: str) -> list[d
             "distance_km": None,
             "source_url": "https://open-meteo.com/",
             "extra": extra,
+            "description": reasoning, # Added description field here
         })
         
     if out:

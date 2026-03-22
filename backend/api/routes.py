@@ -128,7 +128,7 @@ def brief(location_id: str, date: Optional[str] = None) -> dict:
     if not text:
         text = generate_brief(location_id, date)
     hours = db.get_predictions_for_date(location_id, date)
-    peak = max(hours, key=lambda h: h["deviation_pct"]) if hours else None
+    peak = max(hours, key=lambda h: h["busyness_index"]) if hours else None
     return {"date": date, "brief": text, "peak_hour": peak, "hours": hours}
 
 
@@ -293,6 +293,8 @@ def signals_day(location_id: str, date: str) -> dict:
             "start_hour": start_hour,
             "end_hour": end_hour,
             "description": g["extra"].get("description"),
+            "impact_direction": g.get("impact_direction", "neutral"),
+            "impact_magnitude": float(g.get("impact_magnitude", 0.0)),
         }
         
         # Inherit extra weather fields if present

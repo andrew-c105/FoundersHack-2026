@@ -26,6 +26,7 @@ def inject_synthetic_signals(location_id: str) -> None:
         "label": "Weather Notice: Monday 23 Mar",
         "distance_km": None,
         "source_url": "synthetic",
+        "description": "Heavy rain 11:00–14:00 — lunch period likely significantly impacted. Consider reducing lunch staffing.",
         "extra": {
             "low_temp": 18.0,
             "high_temp": 22.0,
@@ -44,7 +45,6 @@ def inject_synthetic_signals(location_id: str) -> None:
             "impact_magnitude": 0.6,
             "impact_conf": 0.85,
             "reasoning": "Mostly overcast with morning showers clearing by early afternoon. Net negative effect on foot traffic, particularly lunch period.",
-            "description": "Heavy rain 11:00–14:00 — lunch period likely significantly impacted. Consider reducing lunch staffing."
         }
     })
 
@@ -59,10 +59,10 @@ def inject_synthetic_signals(location_id: str) -> None:
         "label": "Road Closure - George Street Northbound (Hazard)",
         "distance_km": 0.2,
         "source_url": "synthetic",
+        "description": "Partial road closure 0.2km away, LIVE Traffic NSW confirmed. Reduces pedestrian approach from the north.",
         "extra": {
             "start_hour": 14,
             "end_hour": 22,
-            "description": "Partial road closure 0.2km away, LIVE Traffic NSW confirmed. Reduces pedestrian approach from the north."
         }
     })
 
@@ -77,10 +77,10 @@ def inject_synthetic_signals(location_id: str) -> None:
         "label": "Bob's Burgers George Street - Permanently Closed",
         "distance_km": 0.4,
         "source_url": "synthetic",
+        "description": "Nearby competitor detected as permanently closed 4 days ago, 0.4km away. Demand redistribution ongoing",
         "extra": {
             "start_hour": 6,
             "end_hour": 23,
-            "description": "Nearby competitor detected as permanently closed 4 days ago, 0.4km away. Demand redistribution ongoing"
         }
     })
 
@@ -112,8 +112,8 @@ def inject_synthetic_signals(location_id: str) -> None:
             conn.execute(
                 """
                 INSERT INTO processed_signals
-                (location_id, signal_type, forecast_dt, uplift_pct, signal_conf, label, distance_km, source_url, extra_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (location_id, signal_type, forecast_dt, uplift_pct, signal_conf, label, description, distance_km, source_url, extra_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     location_id,
@@ -122,6 +122,7 @@ def inject_synthetic_signals(location_id: str) -> None:
                     r["uplift_pct"],
                     r["signal_conf"],
                     r["label"],
+                    r.get("description"),
                     r["distance_km"],
                     r["source_url"],
                     json.dumps(r.get("extra")) if r.get("extra") is not None else None,

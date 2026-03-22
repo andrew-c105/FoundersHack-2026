@@ -28,7 +28,7 @@ def predict_next_30_days(location_id: str) -> list[dict[str, Any]]:
         key = format_forecast_dt(dt)
 
         event_uplift = db.get_signal_uplift(location_id, ["ticketmaster", "eventbrite"], key)
-        event_conf = db.get_signal_confidence(location_id, ["ticketmaster", "eventbrite", "static_sport"], key, 0.1)
+        event_conf = db.get_signal_confidence(location_id, ["ticketmaster", "eventbrite", "static_sport"], key, 0.99)
         day_key = dt.strftime("%Y-%m-%d")
         weather_uplift = db.get_signal_uplift(location_id, ["open_meteo"], day_key)
         weather_conf = db.get_signal_confidence(location_id, ["open_meteo"], day_key, 0.5)

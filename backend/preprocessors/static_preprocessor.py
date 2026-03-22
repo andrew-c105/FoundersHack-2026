@@ -53,20 +53,20 @@ def process_static_signal(raw_json: dict[str, Any], location_id: str) -> list[di
         for hr in hours_for_date(day):
             if is_school_hol:
                 out.append(
-                    _row(location_id, "static_school", hr, 0.08, 0.99, "School holiday", None)
+                    _row(location_id, "static_school", hr, 0.08, 0.99, "School holiday", "School holiday period, expect changes in local foot traffic.", None)
                 )
             if is_pub_hol:
                 hn = holidays.get(state, {}).get(ds) or "Public holiday"
                 out.append(
-                    _row(location_id, "static_holiday", hr, 0.12, 0.99, str(hn), None)
+                    _row(location_id, "static_holiday", hr, 0.12, 0.99, str(hn), "Public holiday driving significant changes to baselines.", None)
                 )
             if uni_exam:
                 out.append(
-                    _row(location_id, "static_uni", hr, -0.06, 0.90, "University exam period", None)
+                    _row(location_id, "static_uni", hr, -0.06, 0.90, "University exam period", "University exam period, potentially lower foot traffic.", None)
                 )
             if uni_oweek:
                 out.append(
-                    _row(location_id, "static_uni", hr, 0.15, 0.95, "O-Week / orientation", None)
+                    _row(location_id, "static_uni", hr, 0.15, 0.95, "O-Week / orientation", "University O-Week/orientation, potentially higher foot traffic.", None)
                 )
 
         # Sport fixtures: only emit rows for the match time window
@@ -89,6 +89,7 @@ def process_static_signal(raw_json: dict[str, Any], location_id: str) -> list[di
                         0.20,
                         conf,
                         sport.get("label", "Sporting fixture"),
+                        sport.get("description", "Sporting fixture at nearby stadium, expect localized congestion."),
                         sport.get("distance_km"),
                         sport.get("source_url"),
                     )
@@ -104,6 +105,7 @@ def _row(
     uplift: float,
     conf: float,
     label: str,
+    description: str,
     dist_km: float | None,
     source_url: str | None = None,
 ) -> dict[str, Any]:
@@ -114,6 +116,7 @@ def _row(
         "uplift_pct": uplift,
         "signal_conf": conf,
         "label": label,
+        "description": description,
         "distance_km": dist_km,
         "source_url": source_url or "",
     }
@@ -186,6 +189,7 @@ def _sporting_fixture_near(
             best_d = d
             best = {
                 "label": f"{f.get('home_team','')} vs {f.get('away_team','')}",
+                "description": f"Scheduled fixture at {f.get('stadium', 'a nearby stadium')}. Expect localized congestion and spontaneous pre-match dining.",
                 "distance_km": round(d, 2),
                 "source_url": f.get("source_url", ""),
                 "match_time": f.get("match_time", "15:00"),

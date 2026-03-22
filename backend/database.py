@@ -70,6 +70,7 @@ def init_db() -> None:
                 uplift_pct REAL NOT NULL,
                 signal_conf REAL NOT NULL,
                 label TEXT,
+                description TEXT,
                 distance_km REAL,
                 source_url TEXT,
                 extra_json TEXT,
@@ -171,8 +172,6 @@ def write_processed_signals(
     signal_type: str,
     rows: list[dict[str, Any]],
 ) -> None:
-    if not rows:
-        return
     with db_session() as conn:
         if signal_type == "static":
             conn.execute(
@@ -191,8 +190,8 @@ def write_processed_signals(
             conn.execute(
                 """
                 INSERT INTO processed_signals
-                (location_id, signal_type, forecast_dt, uplift_pct, signal_conf, label, distance_km, source_url, extra_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (location_id, signal_type, forecast_dt, uplift_pct, signal_conf, label, description, distance_km, source_url, extra_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     r.get("location_id", location_id),
@@ -201,6 +200,7 @@ def write_processed_signals(
                     float(r["uplift_pct"]),
                     float(r["signal_conf"]),
                     r.get("label"),
+                    r.get("description"),
                     r.get("distance_km"),
                     r.get("source_url"),
                     json.dumps(r.get("extra")) if r.get("extra") is not None else None,

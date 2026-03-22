@@ -13,7 +13,7 @@ def generate_brief(location_id: str, target_date: str) -> str:
     if not hours:
         return "No forecast yet for this date. Run signal refresh and prediction from settings."
 
-    peak_hour = max(hours, key=lambda h: h["deviation_pct"])
+    peak_hour = max(hours, key=lambda h: h["busyness_index"])
     signals = db.get_processed_signals_for_hour(location_id, peak_hour["forecast_dt"])
 
     loc = db.get_location(location_id) or {}

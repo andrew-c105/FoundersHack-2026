@@ -77,8 +77,12 @@ def process_event_signal(
 
         # ── Step 2: Check LLM verdict (if available) ─────────────
         scored = scored_lookup.get(name)
-        if scored is not None and not scored.get("include", True):
-            # LLM said exclude this event
+        if scored is not None:
+            if not scored.get("include", True):
+                print(f"[RELEVANCE] Skipping event per LLM verdict: {name}")
+                continue
+        elif business_profile:
+            print(f"[RELEVANCE] No LLM verdict found for event: {name} (skipping to be safe)")
             continue
 
         relevance_score = scored.get("relevance_score", 0.5) if scored else 0.5
@@ -130,6 +134,10 @@ def process_event_signal(
         crowd_modifier = get_crowd_confidence_modifier(crowd_type, transit_minutes)
         confidence = clamp(base_conf * crowd_modifier, 0.10, 0.99)
 
+        if confidence < 0.60:
+            print(f"[RELEVANCE] Suppressed low-confidence signal after crowd modifier: {name} (conf: {round(confidence, 2)})")
+            continue
+
         # ── Step 7: Determine affected hours ─────────────────────
         if end is None:
             end = start + timedelta(hours=3)
@@ -137,7 +145,25 @@ def process_event_signal(
         event_type = ev.get("event_type") or ev.get("competition") or "default"
         affected_hours = _get_affected_hours(start, event_type)
 
-        # ── Step 8: One result per affected hour ─────────────────
+        # ── Step 8: Build meaningful description ─────────────────
+        # Pattern: [Name] — [Actionable Insight]
+        impact_msg = "Expect a high volume of transit-based foot traffic and spontaneous dining."
+        if crowd_type == "destination":
+            impact_msg = "Targeted audience event — secondary spillover of hungry attendees expected."
+        elif crowd_type == "local":
+            impact_msg = "Community-focused event likely to increase local neighborhood foot traffic."
+        elif crowd_type == "mixed":
+            impact_msg = "Mixed audience signal — expect a steady increase in spontaneous demand."
+        
+        # If the LLM gave us a specific reason, we can append it or use it to refine.
+        llm_reason = scored.get("relevance_reason", "") if scored else ""
+        description = f"{name} — {impact_msg}"
+        if llm_reason and len(llm_reason) > 5:
+            # If the reason provides new info, we could use it, but the user specifically liked the 
+            # "[What it is] — [What it means]" pattern.
+            pass
+
+        # ── Step 9: One result per affected hour ─────────────────
         for hour_dt in affected_hours:
             if hour_dt < now - timedelta(days=1):
                 continue
@@ -151,6 +177,7 @@ def process_event_signal(
                     "uplift_pct": round(adjusted_uplift, 4),
                     "signal_conf": round(confidence, 2),
                     "label": name,
+                    "description": description,
                     "distance_km": round((walk_minutes * 80) / 1000, 2),  # roughly approx dist from walk
                     "source_url": source_url,
                 }
