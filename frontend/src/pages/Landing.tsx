@@ -1,8 +1,15 @@
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import Grainient from "../components/ui/Grainient";
+import SignUpBlock from "../components/SignUpBlock";
 
 export default function Landing() {
+  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
+
+  const isAuth = !!localStorage.getItem("locationId") || !!localStorage.getItem("auth");
+
   return (
     <div className="relative min-h-screen text-gray-900 font-sans overflow-hidden">
       {/* Dynamic Background */}
@@ -40,7 +47,6 @@ export default function Landing() {
             </div>
             FranchiseOps
         </div>
-        <a href="/docs" className="text-sm font-medium text-gray-500 hover:text-gray-900">API Docs</a>
       </header>
 
       <div className="mx-auto max-w-5xl px-4 py-24 sm:py-32">
@@ -49,28 +55,55 @@ export default function Landing() {
           <h1 className="mx-auto max-w-4xl text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl md:text-7xl">
             Hourly demand you can staff against — <span className="text-blue-600">without sharing sales data.</span>
           </h1>
-          <p className="mx-auto mt-8 max-w-2xl text-lg text-gray-500 leading-relaxed">
+          <p className="mx-auto mt-8 max-w-2xl text-lg text-gray-600 leading-relaxed font-medium">
             We fuse weather, events, transport, holidays, and local competition into a relative busyness index
             and a 30-day hourly forecast. One address and business type at signup.
           </p>
           <div className="mt-12 flex flex-wrap justify-center gap-4">
-            <Link
-              to="/onboarding"
-              className="rounded-xl bg-gray-900 px-8 py-4 font-semibold text-white shadow-lg shadow-gray-900/20 transition hover:bg-black hover:-translate-y-0.5"
-            >
-              Start onboarding
-            </Link>
-            <a
-              href="/docs"
-              className="rounded-xl border border-gray-200 bg-white px-8 py-4 font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-gray-300"
-              onClick={(e) => {
-                e.preventDefault();
-              }}
-            >
-              API docs (run backend)
-            </a>
+              <button
+                onClick={() => {
+                  if (isAuth) {
+                    navigate("/today");
+                  } else {
+                    setShowModal(true);
+                  }
+                }}
+                className="rounded-xl bg-gray-900 px-8 py-4 font-semibold text-white shadow-lg shadow-gray-900/20 transition hover:bg-black hover:-translate-y-0.5"
+              >
+                Start onboarding
+              </button>
           </div>
         </motion.div>
+
+        <AnimatePresence>
+          {showModal && !isAuth && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setShowModal(false);
+              }}
+            >
+              <div className="relative w-full max-w-sm">
+                <button
+                  className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition hover:text-gray-900"
+                  onClick={() => setShowModal(false)}
+                >
+                  ×
+                </button>
+                <SignUpBlock
+                  onClose={() => setShowModal(false)}
+                  onSuccess={() => {
+                    setShowModal(false);
+                    navigate("/onboarding");
+                  }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="mt-32 grid gap-8 sm:grid-cols-3">
           {[

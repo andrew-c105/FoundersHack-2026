@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 
 export default function SettingsPage() {
@@ -43,19 +44,33 @@ export default function SettingsPage() {
     setToggles(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const navigate = useNavigate();
+
   if (!loc) return <p className="text-gray-500">Loading…</p>;
 
   return (
     <div className="max-w-4xl space-y-6 pb-20">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold text-gray-900">Settings</h1>
-        <button
-          onClick={refresh}
-          disabled={busy}
-          className="rounded-lg bg-white border border-gray-200 shadow-sm px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
-        >
-          {busy ? "Refreshing..." : "Force refresh signals"}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={refresh}
+            disabled={busy}
+            className="rounded-lg bg-white border border-gray-200 shadow-sm px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+          >
+            {busy ? "Refreshing..." : "Force refresh signals"}
+          </button>
+          <button
+            onClick={() => {
+              localStorage.removeItem("auth");
+              localStorage.removeItem("locationId");
+              navigate("/");
+            }}
+            className="rounded-lg bg-white border border-gray-200 shadow-sm px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {msg && (
@@ -115,12 +130,12 @@ export default function SettingsPage() {
         </div>
         <div className="divide-y divide-gray-100 border-t border-gray-100">
           {[
-            { key: "events", title: "Local events", subtitle: "Ticketmaster + Eventbrite within 3km" },
+            { key: "events", title: "Local events", subtitle: "Council Events + Eventbrite within 3km" },
             { key: "weather", title: "Weather", subtitle: "Open-Meteo 7-day forecast" },
             { key: "competitors", title: "Competitor closures", subtitle: "Google Places status monitoring" },
             { key: "traffic", title: "Road closures", subtitle: "Live Traffic NSW" },
             { key: "school", title: "School holidays", subtitle: "NSW term dates calendar" },
-            { key: "sports", title: "AFL / NRL fixtures", subtitle: "Seasonal fixture calendar" }
+            { key: "sports", title: "Sport Fixtures (AFL/NFL/A-League)", subtitle: "Seasonal fixture calendar" }
           ].map((item) => {
             const isActive = toggles[item.key];
             return (
@@ -132,14 +147,12 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => toggleHandler(item.key)}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isActive ? "bg-blue-600" : "bg-gray-200"
-                  }`}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isActive ? "bg-blue-600" : "bg-gray-200"
+                    }`}
                 >
                   <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      isActive ? "translate-x-5" : "translate-x-0"
-                    }`}
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isActive ? "translate-x-5" : "translate-x-0"
+                      }`}
                   />
                 </button>
               </div>

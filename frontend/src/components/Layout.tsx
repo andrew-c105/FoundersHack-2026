@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const nav = [
@@ -27,12 +27,18 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 w-64 border-r border-gray-200 bg-white">
         <div className="flex h-16 items-center px-6 border-b border-gray-100">
-          <div className="flex items-center gap-2 text-xl font-bold tracking-tight text-gray-900 cursor-pointer" onClick={() => navigate("/today")}>
-            <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center">
+          <Link to="/" className="group flex items-center gap-2 text-xl font-bold tracking-tight text-gray-900 transition-colors hover:text-blue-600 relative">
+            <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center group-hover:bg-blue-700 transition-colors">
               <span className="text-white text-xs font-black">F</span>
             </div>
             FranchiseOps
-          </div>
+            
+            <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none z-50">
+              Back to home
+              <svg className="absolute bottom-full left-1/2 -ml-1 h-2 w-2 text-gray-800" fill="currentColor" viewBox="0 0 8 8"><path d="M4 0l4 8H0z"/></svg>
+            </span>
+            <svg className="ml-1 h-4 w-4 text-gray-400 opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </Link>
         </div>
         
         <div className="px-4 py-6">

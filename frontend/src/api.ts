@@ -43,14 +43,14 @@ export type PredictionRow = {
   busyness_index: number;
   baseline_score: number;
   deviation_pct: number;
-  confidence: number;
+  forecast_confidence: number;
 };
 
 export type SignalRow = {
   signal_type: string;
   label: string | null;
   uplift_pct: number;
-  confidence: number;
+  signal_conf: number;
   distance_km: number | null;
 };
 
@@ -58,7 +58,9 @@ export type DaySignal = {
   label: string;
   signal_type: string;
   uplift_pct: number;
-  confidence: number;
+  signal_conf: number;
+  impact_direction?: string;
+  impact_magnitude?: number;
   distance_km: number | null;
   source_url: string | null;
   start_hour: number;

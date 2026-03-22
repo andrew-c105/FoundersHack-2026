@@ -59,7 +59,7 @@ const itemVariants = {
 export default function TodayBrief() {
   const id = localStorage.getItem("locationId")!;
   const [day, setDay] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  
+
   const [brief, setBrief] = useState<string>("");
   const [peak, setPeak] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,18 +101,18 @@ export default function TodayBrief() {
       .then((r) => {
         if (cancelled) return;
         const processed = r.signals.map((s: any) => {
-          let extra = {};
-          try {
-            extra = typeof s.extra_json === 'string' ? JSON.parse(s.extra_json) : (s.extra_json || {});
-          } catch (e) { }
-
           return {
             ...s,
-            label: (extra as any).outlier_label ? `Weather: ${(extra as any).outlier_label}` : s.label,
-            start_hour: (extra as any).start_hour ?? (s.signal_type.includes("event") ? 18 : 9),
-            end_hour: (extra as any).end_hour ?? (s.signal_type.includes("event") ? 22 : 17),
-            outlier: (extra as any).outlier || false,
-            description: (extra as any).description || null,
+            label: s.outlier_label ? `Weather: ${s.outlier_label}` : s.label,
+            start_hour: s.start_hour ?? (s.signal_type.includes("event") ? 18 : 9),
+            end_hour: s.end_hour ?? (s.signal_type.includes("event") ? 22 : 17),
+            outlier: s.outlier || false,
+            outlier_alert: s.outlier_alert || null,
+            low_temp: s.low_temp ?? s.temp_low,
+            high_temp: s.high_temp ?? s.temp_high,
+            rainfall_mm: s.rainfall_mm ?? s.total_rain_mm,
+            conditions: s.conditions,
+            description: s.description || null,
           };
         });
         setDaySignals(processed);
@@ -143,18 +143,17 @@ export default function TodayBrief() {
   }, [preds]);
 
   const startDate = useMemo(() => {
-    if (!preds.length) return new Date();
-    const endT = preds[preds.length - 1].forecast_dt.slice(0, 10);
-    const d = new Date(endT + "T12:00:00");
+    const d = new Date();
     d.setFullYear(d.getFullYear() - 1);
+    d.setDate(d.getDate() + 30);
     return d;
-  }, [preds]);
+  }, []);
 
   const endDate = useMemo(() => {
-    if (!preds.length) return new Date();
-    const t = preds[preds.length - 1].forecast_dt.slice(0, 10);
-    return new Date(t + "T12:00:00");
-  }, [preds]);
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d;
+  }, []);
 
   const dayRows = useMemo(
     () =>
@@ -193,11 +192,11 @@ export default function TodayBrief() {
 
   const bi = peak ? Number(peak.busyness_index) : "—";
   const dev = peak ? Number(peak.deviation_pct) : "—";
-  const conf = peak ? Number(peak.confidence) : "—";
+  const conf = peak ? Number(peak.forecast_confidence) : "—";
 
   return (
     <>
-      <motion.div 
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="show"
@@ -226,167 +225,167 @@ export default function TodayBrief() {
           </label>
         </motion.div>
 
-      {brief && (
-        <motion.article
-          variants={itemVariants}
-          className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 leading-relaxed text-gray-700"
-        >
-          {brief.replace(/\d{4}-\d{2}-\d{2}T(\d{2}):\d{2}:\d{2}/g, (match) => {
-            const date = new Date(match);
-            return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-          })}
-        </motion.article>
-      )}
-
-      <motion.div variants={itemVariants} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { 
-            label: "Busyness index", 
-            value: bi, 
-            tooltip: "Absolute busyness score (0-100) based on typical peak capacity." 
-          },
-          { 
-            label: "Deviation vs normal", 
-            value: dev === "—" ? "—" : `${dev > 0 ? '+' : ''}${dev}%`, 
-            tooltip: "How much busier (+) or quieter (-) this hour is compared to your location's historical average for this specific time and day."
-          },
-          { 
-            label: "Confidence", 
-            value: conf === "—" ? "—" : `${Math.min(99, Math.round((conf + 0.1) * 100))}%`, 
-            tooltip: "The statistical certainty of this prediction based on data quality and signal strength (Capped at 99%)."
-          },
-          { 
-            label: "Peak hour", 
-            value: peak 
-              ? new Date(String(peak.forecast_dt)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
-              : "—",
-            tooltip: "The specific hour during this 24-hour period expected to have the highest foot traffic."
-          },
-        ].map((c) => (
-          <div 
-            key={c.label} 
-            className="group relative rounded-2xl border border-gray-100 bg-white shadow-sm p-6 flex flex-col items-start justify-between transition hover:border-blue-200 hover:shadow-md"
+        {brief && (
+          <motion.article
+            variants={itemVariants}
+            className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6 leading-relaxed text-gray-700"
           >
-            <div className="flex items-center gap-1.5">
-              <p className="text-sm font-medium text-gray-500 shrink-0">{c.label}</p>
-            </div>
-            
-            {/* Tooltip implementation via CSS or simple absolute div */}
-            <div className="absolute bottom-full left-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-2 text-center text-xs text-white shadow-xl group-hover:block z-50">
-              {c.tooltip}
-              <div className="absolute top-full left-1/2 -ml-1 border-4 border-transparent border-t-gray-900" />
-            </div>
-
-            <p className={`mt-4 text-3xl font-bold ${c.label === 'Deviation vs normal' && typeof c.value === 'string' && c.value.includes('-') ? 'text-red-500' : 'text-blue-600'}`}>
-              {c.value}
-            </p>
-          </div>
-        ))}
-      </motion.div>
-
-      <motion.div variants={itemVariants} className="space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-xl font-bold text-gray-900">
-              {dayLabel} — active signals
-            </h2>
-            <p className="text-sm text-gray-500">
-              {daySignals.length} signals active today
-              {peakPeriod && ` · peak period ${peakPeriod}`}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            {posCount > 0 && (
-              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                {posCount} positive
-              </span>
-            )}
-            {negCount > 0 && (
-              <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
-                {negCount} negative
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Bar chart from day view */}
-        <div className="h-56 rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dayRows.map((r) => ({ ...r, h: r.forecast_dt.slice(11, 16) }))}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="h" tick={{ fill: "#64748b", fontSize: 10 }} />
-              <YAxis tick={{ fill: "#64748b" }} />
-              <Tooltip
-                contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
-                labelStyle={{ fontWeight: "bold", color: "#1e293b" }}
-              />
-              <Bar dataKey="busyness_index" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Signal timeline cards */}
-        <div className="flex flex-col gap-6">
-          {/* Sort: Positives first (largest to smallest), then negatives (largest magnitude to smallest) */}
-          {[...daySignals]
-            .filter((sig) => sig.signal_type !== "open_meteo" || sig.outlier)
-            .sort((a, b) => {
-              if (a.uplift_pct >= 0 && b.uplift_pct < 0) return -1;
-              if (a.uplift_pct < 0 && b.uplift_pct >= 0) return 1;
-              return Math.abs(b.uplift_pct) - Math.abs(a.uplift_pct);
-            })
-            .map((sig, idx) => (
-              <SignalCard key={idx} signal={sig} />
-            ))}
-        </div>
-
-        {/* Net outlook */}
-        {dayBrief && (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4">
-            <p className="text-sm leading-relaxed text-gray-700">
-              <span className="font-semibold text-gray-900">Net outlook: </span>
-              {dayBrief}
-            </p>
-          </div>
+            {brief.replace(/\d{4}-\d{2}-\d{2}T(\d{2}):\d{2}:\d{2}/g, (match) => {
+              const date = new Date(match);
+              return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+            })}
+          </motion.article>
         )}
-      </motion.div>
 
-      <motion.div variants={itemVariants} className="space-y-3">
-        <h2 className="font-display text-xl font-bold text-gray-900">12-month forecast overview</h2>
-        <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm p-5 pb-2">
-          <div className="w-full mx-auto">
-            {heatmapValues.length === 0 ? (
-              <p className="text-gray-500">No predictions yet.</p>
-            ) : (
-              <CalendarHeatmap
-                startDate={startDate}
-                endDate={endDate}
-                values={heatmapValues}
-                classForValue={(v) => {
-                  if (!v || !v.count) return "color-empty";
-                  return `color-scale-${v.count}`;
-                }}
-                tooltipDataAttrs={(v: any) =>
-                  (v?.date
-                    ? { "data-tip": `${v.date}: intensity ${v.count}` }
-                    : {}) as any
-                }
-              />
-            )}
-            <div className="mt-4 flex justify-end items-center gap-1 text-xs text-gray-500">
-              <span className="mr-1">Less</span>
-              <span className="inline-block h-3 w-3 rounded-sm bg-[#f1f5f9]" />
-              <span className="inline-block h-3 w-3 rounded-sm bg-[#dbeafe]" />
-              <span className="inline-block h-3 w-3 rounded-sm bg-[#93c5fd]" />
-              <span className="inline-block h-3 w-3 rounded-sm bg-[#3b82f6]" />
-              <span className="inline-block h-3 w-3 rounded-sm bg-[#1d4ed8]" />
-              <span className="ml-1">More</span>
+        <motion.div variants={itemVariants} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: "Busyness index",
+              value: bi,
+              tooltip: "Absolute busyness score (0-100) based on typical peak capacity."
+            },
+            {
+              label: "Deviation vs normal",
+              value: dev === "—" ? "—" : `${dev > 0 ? '+' : ''}${dev}%`,
+              tooltip: "How much busier (+) or quieter (-) this hour is compared to your location's historical average for this specific time and day."
+            },
+            {
+              label: "Confidence",
+              value: conf === "—" ? "—" : `${Math.min(99, Math.round((conf + 0.1) * 100))}%`,
+              tooltip: "The statistical certainty of this prediction based on data quality and signal strength."
+            },
+            {
+              label: "Peak hour",
+              value: peak
+                ? new Date(String(peak.forecast_dt)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
+                : "—",
+              tooltip: "The specific hour during this 24-hour period expected to have the highest foot traffic."
+            },
+          ].map((c) => (
+            <div
+              key={c.label}
+              className="group relative rounded-2xl border border-gray-100 bg-white shadow-sm p-6 flex flex-col items-start justify-between transition hover:border-blue-200 hover:shadow-md"
+            >
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-medium text-gray-500 shrink-0">{c.label}</p>
+              </div>
+
+              {/* Tooltip implementation via CSS or simple absolute div */}
+              <div className="absolute bottom-full left-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded-lg bg-gray-900 px-3 py-2 text-center text-xs text-white shadow-xl group-hover:block z-50">
+                {c.tooltip}
+                <div className="absolute top-full left-1/2 -ml-1 border-4 border-transparent border-t-gray-900" />
+              </div>
+
+              <p className={`mt-4 text-3xl font-bold ${c.label === 'Deviation vs normal' && typeof c.value === 'string' && c.value.includes('-') ? 'text-red-500' : 'text-blue-600'}`}>
+                {c.value}
+              </p>
+            </div>
+          ))}
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="space-y-8">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-xl font-bold text-gray-900">
+                {dayLabel} — active signals
+              </h2>
+              <p className="text-sm text-gray-500">
+                {daySignals.length} signals active today
+                {peakPeriod && ` · peak period ${peakPeriod}`}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {posCount > 0 && (
+                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                  {posCount} positive
+                </span>
+              )}
+              {negCount > 0 && (
+                <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                  {negCount} negative
+                </span>
+              )}
             </div>
           </div>
-        </div>
+
+          {/* Bar chart from day view */}
+          <div className="h-56 rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dayRows.map((r) => ({ ...r, h: r.forecast_dt.slice(11, 16) }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="h" tick={{ fill: "#64748b", fontSize: 10 }} />
+                <YAxis tick={{ fill: "#64748b" }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
+                  labelStyle={{ fontWeight: "bold", color: "#1e293b" }}
+                />
+                <Bar dataKey="busyness_index" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Signal timeline cards */}
+          <div className="flex flex-col gap-6">
+            {/* Sort: Positives first (largest to smallest), then negatives (largest magnitude to smallest) */}
+            {[...daySignals]
+              .filter((sig) => sig.signal_type !== "open_meteo" || (sig.impact_magnitude && sig.impact_magnitude > 0.05))
+              .sort((a, b) => {
+                if (a.uplift_pct >= 0 && b.uplift_pct < 0) return -1;
+                if (a.uplift_pct < 0 && b.uplift_pct >= 0) return 1;
+                return Math.abs(b.uplift_pct) - Math.abs(a.uplift_pct);
+              })
+              .map((sig, idx) => (
+                <SignalCard key={idx} signal={sig} />
+              ))}
+          </div>
+
+          {/* Net outlook */}
+          {dayBrief && (
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-5 py-4">
+              <p className="text-sm leading-relaxed text-gray-700">
+                <span className="font-semibold text-gray-900">Net outlook: </span>
+                {dayBrief}
+              </p>
+            </div>
+          )}
+        </motion.div>
+
+        <motion.div variants={itemVariants} className="space-y-3">
+          <h2 className="font-display text-xl font-bold text-gray-900">12-month forecast overview</h2>
+          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm p-5 pb-2">
+            <div className="w-full mx-auto">
+              {heatmapValues.length === 0 ? (
+                <p className="text-gray-500">No predictions yet.</p>
+              ) : (
+                <CalendarHeatmap
+                  startDate={startDate}
+                  endDate={endDate}
+                  values={heatmapValues}
+                  classForValue={(v) => {
+                    if (!v || !v.count) return "color-empty";
+                    return `color-scale-${v.count}`;
+                  }}
+                  tooltipDataAttrs={(v: any) =>
+                    (v?.date
+                      ? { "data-tip": `${v.date}: intensity ${v.count}` }
+                      : {}) as any
+                  }
+                />
+              )}
+              <div className="mt-4 flex justify-end items-center gap-1 text-xs text-gray-500">
+                <span className="mr-1">Less</span>
+                <span className="inline-block h-3 w-3 rounded-sm bg-[#f1f5f9]" />
+                <span className="inline-block h-3 w-3 rounded-sm bg-[#dbeafe]" />
+                <span className="inline-block h-3 w-3 rounded-sm bg-[#93c5fd]" />
+                <span className="inline-block h-3 w-3 rounded-sm bg-[#3b82f6]" />
+                <span className="inline-block h-3 w-3 rounded-sm bg-[#1d4ed8]" />
+                <span className="ml-1">More</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
-    </motion.div>
 
       <div className="pt-4 border-t border-gray-100 flex justify-end">
         <button
@@ -403,13 +402,15 @@ export default function TodayBrief() {
 
 
 
-function SignalCard({ signal }: { signal: DaySignal }) {
+function SignalCard({ signal }: { signal: any }) {
   const isPositive = signal.uplift_pct >= 0;
-  const dotColor = isPositive ? "bg-green-500" : "bg-red-500";
+  const isWeather = signal.signal_type === "open_meteo";
+  const dotColor = isWeather ? "bg-amber-400" : (isPositive ? "bg-green-500" : "bg-red-500");
   const upliftColor = isPositive
     ? "bg-green-100 text-green-700"
     : "bg-red-100 text-red-700";
-  const barColor = isPositive ? "bg-green-500" : "bg-red-500";
+  const barColor = isWeather ? "bg-amber-400" : (isPositive ? "bg-green-500" : "bg-red-500");
+  const cardBorder = isWeather ? "border-amber-200 bg-white" : (isPositive ? "border-gray-100 bg-white" : "border-red-100 bg-red-50/40");
 
   const rangeStart = 6;
   const rangeEnd = 23;
@@ -424,7 +425,7 @@ function SignalCard({ signal }: { signal: DaySignal }) {
   const ticks = [6, 9, 12, 15, 18, 21, 23];
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
+    <div className={`rounded-2xl border ${cardBorder} shadow-sm p-4`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className={`mt-1 inline-block h-2.5 w-2.5 rounded-full ${dotColor}`} />
@@ -436,29 +437,59 @@ function SignalCard({ signal }: { signal: DaySignal }) {
           </span>
           <span className={`rounded-full px-2.5 py-1 font-semibold ${upliftColor}`}>
             {isPositive ? "+" : ""}
-            {Math.round(signal.uplift_pct * 100)}% uplift
+            {Math.round(signal.uplift_pct * 100)}% {isPositive ? "uplift" : "impact"}
           </span>
-          <span className="text-gray-400 mr-1">conf {signal.confidence}</span>
+          <span className="text-gray-400 mr-1">conf {signal.signal_conf}</span>
         </div>
       </div>
 
       <div className="mt-2 pl-4">
         {signal.distance_km != null && (
-          <p className="text-sm font-medium text-gray-500">
+          <p className="text-sm font-medium text-gray-500 mb-1">
             {signal.distance_km}km away
           </p>
         )}
-        <p className="mt-1 text-sm text-gray-600 leading-relaxed">
-          {signal.description || (
-            signal.signal_type.includes("sport") ? "Scheduled fixture at nearby stadium. Expect localized congestion." :
-            signal.signal_type.includes("event") ? "Local event scheduled nearby." :
-            signal.signal_type.includes("holiday") ? "Public holiday driving significant changes to baselines." :
-            signal.signal_type.includes("school") ? "School term impact period influencing foot traffic." :
-            signal.signal_type === "open_meteo" && signal.outlier ? "Weather outlier detected, impacting foot traffic." :
-            "Model anomaly flag generated from location activity."
-          )}
-        </p>
+        
+        {isWeather && (
+          <div className="mt-2 mb-3 mr-4 grid grid-cols-4 gap-2">
+            <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-2 text-center">
+               <span className="block text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-0.5">Low</span>
+               <span className="text-sm font-bold text-gray-900">{signal.low_temp}°C</span>
+            </div>
+            <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-2 text-center">
+               <span className="block text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-0.5">High</span>
+               <span className="text-sm font-bold text-gray-900">{signal.high_temp}°C</span>
+            </div>
+            <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-2 text-center">
+               <span className="block text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-0.5">Rain</span>
+               <span className={`text-sm font-bold ${signal.rainfall_mm > 0 ? "text-amber-600" : "text-gray-900"}`}>{signal.rainfall_mm}mm</span>
+            </div>
+            <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-2 text-center">
+               <span className="block text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-0.5">Conditions</span>
+               <span className={`text-sm font-bold ${signal.conditions?.toLowerCase().includes("rain") || signal.conditions?.toLowerCase().includes("storm") ? "text-amber-600" : "text-gray-900"}`}>{signal.conditions}</span>
+            </div>
+          </div>
+        )}
+
+        {isWeather && (signal.outlier_alert || signal.outlier) ? null : (
+          <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+            {signal.description || (
+              signal.signal_type.includes("sport") ? "Scheduled fixture at nearby stadium. Expect localized congestion." :
+                signal.signal_type.includes("event") ? "Local event scheduled nearby." :
+                  signal.signal_type.includes("holiday") ? "Public holiday driving significant changes to baselines." :
+                    signal.signal_type.includes("school") ? "School term impact period influencing foot traffic." :
+                      signal.signal_type === "open_meteo" && signal.outlier ? "Weather outlier detected, impacting foot traffic." :
+                        "Model anomaly flag generated from location activity."
+            )}
+          </p>
+        )}
       </div>
+
+      {isWeather && (signal.outlier_alert || signal.outlier) && (
+        <div className="mt-3 ml-4 mr-4 rounded-lg bg-amber-50/80 border border-amber-200/50 p-3">
+           <p className="text-sm text-amber-900/90 font-medium leading-relaxed">{signal.outlier_alert || signal.description}</p>
+        </div>
+      )}
 
       <div className="mt-4 pl-4">
         <div className="relative h-2 rounded-full bg-gray-100">
