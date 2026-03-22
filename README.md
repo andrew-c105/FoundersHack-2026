@@ -10,7 +10,7 @@ Swell monitors external signals around your location and synthesises them into a
 - **Backend:** FastAPI, APScheduler, XGBoost, scikit-learn, pandas
 - **ML:** XGBoost regressor trained on Popular Times baselines and live signal uplifts
 - **LLM:** OpenRouter (Gemini Flash) for event relevance filtering, weather summarisation, and plain-English brief generation
-- **Storage:** SQLite (single `.db` file)
+- **Storage:** SQLite
 
 **Fetched on refresh (scheduler every 6 hours, or manual refresh)**
 
