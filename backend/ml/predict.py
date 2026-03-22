@@ -28,7 +28,7 @@ def predict_next_30_days(location_id: str) -> list[dict[str, Any]]:
         key = format_forecast_dt(dt)
 
         event_uplift = db.get_signal_uplift(location_id, ["ticketmaster", "eventbrite"], key)
-        event_conf = db.get_signal_confidence(location_id, ["ticketmaster", "eventbrite"], key, 0.1)
+        event_conf = db.get_signal_confidence(location_id, ["ticketmaster", "eventbrite", "static_sport"], key, 0.1)
         day_key = dt.strftime("%Y-%m-%d")
         weather_uplift = db.get_signal_uplift(location_id, ["open_meteo"], day_key)
         weather_conf = db.get_signal_confidence(location_id, ["open_meteo"], day_key, 0.5)
@@ -82,7 +82,7 @@ def predict_next_30_days(location_id: str) -> list[dict[str, Any]]:
         else:
             deviation_pct = 0
 
-        confidence = round(
+        forecast_confidence = round(
             (features["event_conf"] + features["weather_conf"] + 0.99 + 0.99) / 4,
             2,
         )
@@ -100,7 +100,7 @@ def predict_next_30_days(location_id: str) -> list[dict[str, Any]]:
                 "busyness_index": predicted_score,
                 "baseline_score": baseline_score,
                 "deviation_pct": deviation_pct,
-                "confidence": confidence,
+                "forecast_confidence": forecast_confidence,
             }
         )
 

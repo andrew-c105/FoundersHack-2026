@@ -7,9 +7,7 @@
     "round": 20,
     "home_team": "GWS GIANTS",
     "away_team": "Sydney Swans",
-    "stadium": "ENGIE Stadium",
-    "venue_lat": -33.8368,
-    "venue_lng": 151.0695
+    "stadium": "ENGIE Stadium, Sydney"
   },
   {
     "competition": "AFL",
@@ -19,9 +17,7 @@
     "round": 22,
     "home_team": "Sydney Swans",
     "away_team": "Port Adelaide",
-    "stadium": "SCG",
-    "venue_lat": -33.8914,
-    "venue_lng": 151.2249
+    "stadium": "SCG, Sydney"
   },
   {
     "competition": "AFL",
@@ -31,9 +27,7 @@
     "round": 23,
     "home_team": "GWS GIANTS",
     "away_team": "West Coast Eagles",
-    "stadium": "ENGIE Stadium",
-    "venue_lat": -33.8368,
-    "venue_lng": 151.0695
+    "stadium": "ENGIE Stadium, Sydney"
   },
   {
     "competition": "AFL",
@@ -43,9 +37,7 @@
     "round": 24,
     "home_team": "Sydney Swans",
     "away_team": "North Melbourne",
-    "stadium": "SCG",
-    "venue_lat": -33.8914,
-    "venue_lng": 151.2249
+    "stadium": "SCG, Sydney"
   },
   {
     "competition": "NRL",
@@ -54,9 +46,7 @@
     "match_end_time": "17:00",
     "home_team": "Bulldogs",
     "away_team": "Knights",
-    "stadium": "Accor Stadium",
-    "venue_lat": -33.8474,
-    "venue_lng": 151.0631
+    "stadium": "Accor Stadium"
   },
   {
     "competition": "NRL",
@@ -65,9 +55,7 @@
     "match_end_time": "19:30",
     "home_team": "Panthers",
     "away_team": "Eels",
-    "stadium": "CommBank Stadium",
-    "venue_lat": -33.8134,
-    "venue_lng": 150.9942
+    "stadium": "CommBank Stadium, Sydney"
   },
   {
     "competition": "NRL",
@@ -76,9 +64,7 @@
     "match_end_time": "22:00",
     "home_team": "Sea Eagles",
     "away_team": "Roosters",
-    "stadium": "4 Pines Park",
-    "venue_lat": -33.7956,
-    "venue_lng": 151.2834
+    "stadium": "4 Pines Park, Sydney"
   },
   {
     "competition": "NRL",
@@ -87,9 +73,7 @@
     "match_end_time": "18:25",
     "home_team": "Rabbitohs",
     "away_team": "Bulldogs",
-    "stadium": "Accor Stadium",
-    "venue_lat": -33.8474,
-    "venue_lng": 151.0631
+    "stadium": "Accor Stadium, Sydney"
   },
   {
     "competition": "NRL",
@@ -98,9 +82,7 @@
     "match_end_time": "22:10",
     "home_team": "Panthers",
     "away_team": "Storm",
-    "stadium": "CommBank Stadium",
-    "venue_lat": -33.8134,
-    "venue_lng": 150.9942
+    "stadium": "CommBank Stadium, Sydney"
   },
   {
     "competition": "NRL",
@@ -109,9 +91,7 @@
     "match_end_time": "19:30",
     "home_team": "Dragons",
     "away_team": "Cowboys",
-    "stadium": "Jubilee Stadium",
-    "venue_lat": -33.9553,
-    "venue_lng": 151.1630
+    "stadium": "Jubilee Stadium, Newcastle"
   },
   {
     "competition": "NRL",
@@ -120,9 +100,7 @@
     "match_end_time": "18:05",
     "home_team": "Knights",
     "away_team": "Raiders",
-    "stadium": "McDonald Jones Stadium",
-    "venue_lat": -32.9272,
-    "venue_lng": 151.7745
+    "stadium": "McDonald Jones Stadium"
   },
   {
     "competition": "NRL",
@@ -131,9 +109,7 @@
     "match_end_time": "18:35",
     "home_team": "Eels",
     "away_team": "Tigers",
-    "stadium": "CommBank Stadium",
-    "venue_lat": -33.8134,
-    "venue_lng": 150.9942
+    "stadium": "CommBank Stadium, Sydney"
   },
   {
     "competition": "NRL",
@@ -142,9 +118,7 @@
     "match_end_time": "21:50",
     "home_team": "Bulldogs",
     "away_team": "Panthers",
-    "stadium": "Accor Stadium",
-    "venue_lat": -33.8474,
-    "venue_lng": 151.0631
+    "stadium": "Accor Stadium, Sydney"
   },
   {
     "competition": "NRL",
@@ -152,9 +126,7 @@
     "match_time": "18:00",
     "home_team": "Dragons",
     "away_team": "Sea Eagles",
-    "stadium": "WIN Stadium",
-    "venue_lat": -34.4248,
-    "venue_lng": 150.8977
+    "stadium": "WIN Stadium, Sydney"
   },
   {
     "competition": "NRL",
@@ -163,9 +135,7 @@
     "match_end_time": "18:05",
     "home_team": "Tigers",
     "away_team": "Knights",
-    "stadium": "Campbelltown Sports Stadium",
-    "venue_lat": -34.0657,
-    "venue_lng": 150.8187
+    "stadium": "Campbelltown Sports Stadium, Sydney"
   },
   {
     "competition": "A-League",
@@ -175,9 +145,7 @@
     "round": 22,
     "home_team": "Sydney FC",
     "away_team": "Newcastle Jets FC",
-    "stadium": "Allianz Stadium",
-    "venue_lat": -33.8731,
-    "venue_lng": 151.2231
+    "stadium": "Allianz Stadium, Sydney"
   },
   {
     "competition": "A-League",
@@ -187,9 +155,7 @@
     "round": 25,
     "home_team": "Sydney FC",
     "away_team": "Perth Glory FC",
-    "stadium": "Allianz Stadium",
-    "venue_lat": -33.8731,
-    "venue_lng": 151.2231
+    "stadium": "Allianz Stadium, Sydney"
   },
   {
     "competition": "A-League",
@@ -199,8 +165,6 @@
     "round": 26,
     "home_team": "Sydney FC",
     "away_team": "Auckland FC",
-    "stadium": "Allianz Stadium",
-    "venue_lat": -33.8731,
-    "venue_lng": 151.2231
+    "stadium": "Allianz Stadium, Sydney"
   }
 ]

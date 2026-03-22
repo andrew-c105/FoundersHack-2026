@@ -68,7 +68,7 @@ def init_db() -> None:
                 signal_type TEXT NOT NULL,
                 forecast_dt TEXT NOT NULL,
                 uplift_pct REAL NOT NULL,
-                confidence REAL NOT NULL,
+                signal_conf REAL NOT NULL,
                 label TEXT,
                 distance_km REAL,
                 source_url TEXT,
@@ -92,7 +92,7 @@ def init_db() -> None:
                 busyness_index INTEGER NOT NULL,
                 baseline_score REAL NOT NULL,
                 deviation_pct INTEGER NOT NULL,
-                confidence REAL NOT NULL,
+                forecast_confidence REAL NOT NULL,
                 UNIQUE(location_id, forecast_dt),
                 FOREIGN KEY (location_id) REFERENCES locations(id)
             );
@@ -130,6 +130,19 @@ def init_db() -> None:
                 input_events_count  INTEGER,
                 included_count      INTEGER,
                 excluded_count      INTEGER,
+                FOREIGN KEY (location_id) REFERENCES locations(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS weather_llm_cache (
+                location_id TEXT NOT NULL,
+                forecast_date TEXT NOT NULL,
+                weather_hash TEXT NOT NULL,
+                impact_direction TEXT NOT NULL,
+                impact_magnitude REAL NOT NULL,
+                impact_conf REAL NOT NULL,
+                reasoning TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (location_id, forecast_date),
                 FOREIGN KEY (location_id) REFERENCES locations(id)
             );
 
@@ -178,7 +191,7 @@ def write_processed_signals(
             conn.execute(
                 """
                 INSERT INTO processed_signals
-                (location_id, signal_type, forecast_dt, uplift_pct, confidence, label, distance_km, source_url, extra_json)
+                (location_id, signal_type, forecast_dt, uplift_pct, signal_conf, label, distance_km, source_url, extra_json)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
@@ -186,7 +199,7 @@ def write_processed_signals(
                     r.get("signal_type", signal_type),
                     r["forecast_dt"],
                     float(r["uplift_pct"]),
-                    float(r["confidence"]),
+                    float(r["signal_conf"]),
                     r.get("label"),
                     r.get("distance_km"),
                     r.get("source_url"),
@@ -272,7 +285,7 @@ def get_signal_confidence(
     with db_session() as conn:
         rows = conn.execute(
             f"""
-            SELECT AVG(confidence) as c
+            SELECT AVG(signal_conf) as c
             FROM processed_signals
             WHERE location_id = ? AND forecast_dt = ? AND signal_type IN ({placeholders})
             """,
@@ -301,7 +314,7 @@ def get_processed_signals_for_hour(location_id: str, forecast_dt_iso: str) -> li
     with db_session() as conn:
         rows = conn.execute(
             """
-            SELECT signal_type, forecast_dt, uplift_pct, confidence, label, distance_km, source_url
+            SELECT signal_type, forecast_dt, uplift_pct, signal_conf, label, distance_km, source_url
             FROM processed_signals
             WHERE location_id = ? AND forecast_dt = ?
             """,
@@ -315,7 +328,7 @@ def get_processed_signals_for_date(location_id: str, date_str: str) -> list[dict
     with db_session() as conn:
         rows = conn.execute(
             """
-            SELECT signal_type, forecast_dt, uplift_pct, confidence, label, distance_km, source_url, extra_json
+            SELECT signal_type, forecast_dt, uplift_pct, signal_conf, label, distance_km, source_url, extra_json
             FROM processed_signals
             WHERE location_id = ? AND forecast_dt LIKE ?
             ORDER BY forecast_dt
@@ -333,7 +346,7 @@ def write_predictions(rows: list[dict[str, Any]]) -> None:
         conn.execute("DELETE FROM predictions WHERE location_id = ?", (loc,))
         conn.executemany(
             """
-            INSERT INTO predictions (location_id, forecast_dt, busyness_index, baseline_score, deviation_pct, confidence)
+            INSERT INTO predictions (location_id, forecast_dt, busyness_index, baseline_score, deviation_pct, forecast_confidence)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
             [
@@ -343,7 +356,7 @@ def write_predictions(rows: list[dict[str, Any]]) -> None:
                     r["busyness_index"],
                     r["baseline_score"],
                     r["deviation_pct"],
-                    r["confidence"],
+                    r["forecast_confidence"],
                 )
                 for r in rows
             ],
@@ -488,7 +501,7 @@ def get_map_signals(location_id: str) -> list[dict[str, Any]]:
     with db_session() as conn:
         rows = conn.execute(
             """
-            SELECT signal_type, label, uplift_pct, confidence, distance_km, source_url, forecast_dt
+            SELECT signal_type, label, uplift_pct, signal_conf, distance_km, source_url, forecast_dt
             FROM processed_signals
             WHERE location_id = ?
             ORDER BY id DESC
@@ -566,6 +579,48 @@ def get_event_reasoning_debug(
             LIMIT  1
             """,
             (location_id, event_name),
+        ).fetchone()
+    if row:
+        return dict(row)
+    return None
+
+
+def save_weather_llm_cache(rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    with db_session() as conn:
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO weather_llm_cache (
+                location_id, forecast_date, weather_hash, impact_direction,
+                impact_magnitude, impact_conf, reasoning, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    r["location_id"],
+                    r["forecast_date"],
+                    r["weather_hash"],
+                    r["impact_direction"],
+                    r["impact_magnitude"],
+                    r["impact_conf"],
+                    r["reasoning"],
+                    r.get("created_at") or _utc_now_iso(),
+                )
+                for r in rows
+            ],
+        )
+
+
+def get_weather_llm_cache(location_id: str, forecast_date: str) -> Optional[dict[str, Any]]:
+    with db_session() as conn:
+        row = conn.execute(
+            """
+            SELECT * FROM weather_llm_cache
+            WHERE  location_id = ?
+            AND    forecast_date = ?
+            """,
+            (location_id, forecast_date),
         ).fetchone()
     if row:
         return dict(row)

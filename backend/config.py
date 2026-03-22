@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     ticketmaster_api_key: str = ""
     openrouter_api_key: str = ""
 
+    dev_synthetic_signals: bool = False
+
     data_dir: Path = Path(__file__).resolve().parent / "data"
     models_dir: Path = Path(__file__).resolve().parent / "models"
     static_data_dir: Path = Path(__file__).resolve().parent / "data" / "static"

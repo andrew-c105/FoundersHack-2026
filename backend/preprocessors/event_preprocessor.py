@@ -97,11 +97,10 @@ def process_event_signal(
         if start is None:
             continue
 
-        dist = haversine_km(biz_lat, biz_lng, vlat, vlng)
-        if dist > 3.0:
-            continue
+        walk_minutes = float(ev.get("walk_minutes", 15))
+        transit_minutes = float(ev.get("transit_minutes", 15))
 
-        proximity_score = 1 - (dist / 3.0)
+        proximity_score = max(0.0, 1.0 - (walk_minutes / 30.0))
         capacity_score = min(capacity / 50000.0, 1.0)
         raw_uplift = proximity_score * capacity_score * 0.45
 
@@ -128,7 +127,7 @@ def process_event_signal(
             base_conf -= 0.15
 
         # ── Step 6: Multiply confidence by crowd type modifier ───
-        crowd_modifier = get_crowd_confidence_modifier(crowd_type)
+        crowd_modifier = get_crowd_confidence_modifier(crowd_type, transit_minutes)
         confidence = clamp(base_conf * crowd_modifier, 0.10, 0.99)
 
         # ── Step 7: Determine affected hours ─────────────────────
@@ -150,9 +149,9 @@ def process_event_signal(
                     "signal_type": source,
                     "forecast_dt": format_forecast_dt(hour_dt),
                     "uplift_pct": round(adjusted_uplift, 4),
-                    "confidence": round(confidence, 2),
+                    "signal_conf": round(confidence, 2),
                     "label": name,
-                    "distance_km": round(dist, 2),
+                    "distance_km": round((walk_minutes * 80) / 1000, 2),  # roughly approx dist from walk
                     "source_url": source_url,
                 }
             )

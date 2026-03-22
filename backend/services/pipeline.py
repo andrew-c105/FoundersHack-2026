@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from typing import Any
 
 import database as db
+from config import settings
 from services.fetchers import (
     fetch_eventbrite_nearby,
     fetch_google_places_nearby,
@@ -121,3 +123,7 @@ def refresh_signals_for_location(location_id: str) -> None:
         }
         db.insert_raw_signal(location_id, "static", st)
         run_preprocessors(location_id, "static", st)
+
+    if settings.dev_synthetic_signals:
+        from dev_fixtures.synthetic_signals import inject_synthetic_signals
+        inject_synthetic_signals(location_id)

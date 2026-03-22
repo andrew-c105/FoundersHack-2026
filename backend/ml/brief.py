@@ -26,12 +26,12 @@ def generate_brief(location_id: str, target_date: str) -> str:
         "peak_hour": peak_hour["forecast_dt"],
         "busyness_index": peak_hour["busyness_index"],
         "deviation_pct": peak_hour["deviation_pct"],
-        "confidence": peak_hour["confidence"],
+        "forecast_confidence": peak_hour["forecast_confidence"],
         "signals": [
             {
                 "label": s["label"],
                 "uplift_pct": s["uplift_pct"],
-                "confidence": s["confidence"],
+                "signal_conf": s["signal_conf"],
                 "distance_km": s.get("distance_km"),
             }
             for s in signals

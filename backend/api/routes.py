@@ -233,9 +233,11 @@ def signals_day(location_id: str, date: str) -> dict:
         "signal_type": "",
         "label": "",
         "uplift_pct": 0.0,
-        "confidence": 0.0,
+        "signal_conf": 0.0,
         "distance_km": None,
         "source_url": "",
+        "impact_direction": "neutral",
+        "impact_magnitude": 0.0,
         "extra": {},
         "hours": [],
     })
@@ -248,7 +250,7 @@ def signals_day(location_id: str, date: str) -> dict:
         g["uplift_pct"] = max(g["uplift_pct"], abs(float(s.get("uplift_pct", 0))))
         if float(s.get("uplift_pct", 0)) < 0:
             g["uplift_pct"] = -g["uplift_pct"]
-        g["confidence"] = max(g["confidence"], float(s.get("confidence", 0)))
+        g["signal_conf"] = max(g["signal_conf"], float(s.get("signal_conf", 0)))
         g["distance_km"] = s.get("distance_km") or g["distance_km"]
         g["source_url"] = s.get("source_url") or g["source_url"]
         
@@ -256,7 +258,10 @@ def signals_day(location_id: str, date: str) -> dict:
         ej = s.get("extra_json")
         if ej:
             try:
-                g["extra"].update(json.loads(ej))
+                ex = json.loads(ej)
+                g["extra"].update(ex)
+                if "impact_direction" in ex: g["impact_direction"] = ex["impact_direction"]
+                if "impact_magnitude" in ex: g["impact_magnitude"] = ex["impact_magnitude"]
             except json.JSONDecodeError:
                 pass
 
@@ -267,6 +272,12 @@ def signals_day(location_id: str, date: str) -> dict:
 
     signals_out = []
     for key, g in grouped.items():
+        if g["signal_type"] == "open_meteo":
+            impact_dir = g["extra"].get("impact_direction")
+            impact_mag = float(g["extra"].get("impact_magnitude", 0))
+            if impact_dir != "negative" or impact_mag <= 0.3:
+                continue
+
         hours = sorted(set(g["hours"]))
         # For signals that provided explicit bounds in extra_json (like weather or daily signals)
         start_hour = g["extra"].get("start_hour", hours[0] if hours else 0)
@@ -276,7 +287,7 @@ def signals_day(location_id: str, date: str) -> dict:
             "label": g["label"],
             "signal_type": g["signal_type"],
             "uplift_pct": round(g["uplift_pct"], 4),
-            "confidence": round(g["confidence"], 2),
+            "signal_conf": round(g["signal_conf"], 2),
             "distance_km": g["distance_km"],
             "source_url": g["source_url"],
             "start_hour": start_hour,

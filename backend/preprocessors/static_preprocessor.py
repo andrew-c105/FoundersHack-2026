@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import googlemaps
+
 from config import settings
 from preprocessors.common import format_forecast_dt, haversine_km
 
@@ -74,6 +76,9 @@ def process_static_signal(raw_json: dict[str, Any], location_id: str) -> list[di
             # Include 1 hour before kick-off through 1 hour after end (dispersal)
             start_h = max(0, match_start_h - 1)
             end_h = min(23, match_end_h + 1)
+            
+            conf = 1.0
+
             for h in range(start_h, end_h + 1):
                 hr_dt = day.replace(hour=h, tzinfo=timezone.utc)
                 out.append(
@@ -82,7 +87,7 @@ def process_static_signal(raw_json: dict[str, Any], location_id: str) -> list[di
                         "static_sport",
                         hr_dt,
                         0.20,
-                        0.95,
+                        conf,
                         sport.get("label", "Sporting fixture"),
                         sport.get("distance_km"),
                         sport.get("source_url"),
@@ -107,7 +112,7 @@ def _row(
         "signal_type": stype,
         "forecast_dt": format_forecast_dt(dt),
         "uplift_pct": uplift,
-        "confidence": conf,
+        "signal_conf": conf,
         "label": label,
         "distance_km": dist_km,
         "source_url": source_url or "",
@@ -131,6 +136,38 @@ def _is_public_holiday(data: Any, state: str, ds: str) -> bool:
     return ds in st
 
 
+_stadium_cache: dict[tuple[str, float, float], float] = {}
+_gmaps_client = None
+
+def _get_stadium_distance(stadium: str, biz_lat: float, biz_lng: float) -> float:
+    global _gmaps_client
+    cache_key = (stadium, biz_lat, biz_lng)
+    if cache_key in _stadium_cache:
+        return _stadium_cache[cache_key]
+        
+    if _gmaps_client is None and settings.google_api_key:
+        _gmaps_client = googlemaps.Client(key=settings.google_api_key)
+        
+    if _gmaps_client is None:
+        return 999.0
+
+    try:
+        res = _gmaps_client.distance_matrix(
+            origins=(biz_lat, biz_lng),
+            destinations=stadium,
+            mode="walking"
+        )
+        if res["rows"][0]["elements"][0]["status"] == "OK":
+            dist_km = res["rows"][0]["elements"][0]["distance"]["value"] / 1000.0
+            _stadium_cache[cache_key] = dist_km
+            return dist_km
+    except Exception as e:
+        print(f"Error getting stadium distance: {e}")
+        
+    _stadium_cache[cache_key] = 999.0
+    return 999.0
+
+
 def _sporting_fixture_near(
     fixtures: Any, lat: float, lng: float, ds: str
 ) -> dict[str, Any] | None:
@@ -141,9 +178,10 @@ def _sporting_fixture_near(
     for f in fixtures:
         if f.get("match_date") != ds:
             continue
-        vlat = float(f.get("venue_lat", lat))
-        vlng = float(f.get("venue_lng", lng))
-        d = haversine_km(lat, lng, vlat, vlng)
+        stadium = f.get("stadium")
+        if not stadium:
+            continue
+        d = _get_stadium_distance(stadium, lat, lng)
         if d <= 5.0 and d < best_d:
             best_d = d
             best = {

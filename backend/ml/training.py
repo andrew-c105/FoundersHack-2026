@@ -47,18 +47,21 @@ def build_training_table(location_id: str, history_days: int = 90) -> pd.DataFra
         dow = dt.weekday()
         hour = dt.hour
         key = format_forecast_dt(dt)
-
-        event_uplift = _event_uplift(location_id, dt)
-        event_conf = _event_conf(location_id, dt)
         day_key = dt.strftime("%Y-%m-%d")
+
+        event_uplift = db.get_signal_uplift(location_id, ["ticketmaster", "eventbrite"], key)
         weather_uplift = db.get_signal_uplift(location_id, ["open_meteo"], day_key)
-        weather_conf = db.get_signal_confidence(location_id, ["open_meteo"], day_key, 0.5)
         competitor_shift = db.get_signal_uplift(location_id, ["google_places"], key)
-        transport_impact = _transport_total(location_id, dt)
+        transport_impact = db.get_signal_uplift(location_id, ["transport_nsw"], key) + db.get_signal_uplift(
+            location_id, ["live_traffic"], key
+        )
         school_holiday = db.get_signal_uplift(location_id, ["static_school"], key)
         public_holiday = db.get_signal_uplift(location_id, ["static_holiday"], key)
         sporting_fixture = db.get_signal_uplift(location_id, ["static_sport"], key)
         uni_calendar = db.get_signal_uplift(location_id, ["static_uni"], key)
+
+        event_conf = db.get_signal_confidence(location_id, ["ticketmaster", "eventbrite"], key, 0.1)
+        weather_conf = db.get_signal_confidence(location_id, ["open_meteo"], day_key, 0.5)
 
         baseline = db.get_popular_times_baseline(location_id, dow, hour)
 

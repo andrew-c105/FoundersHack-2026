@@ -79,7 +79,7 @@ def process_transport_signal(raw_json: dict[str, Any], location_id: str) -> list
                     "signal_type": stype,
                     "forecast_dt": format_forecast_dt(cur),
                     "uplift_pct": uplift,
-                    "confidence": confidence,
+                    "signal_conf": confidence,
                     "label": str(label)[:200],
                     "distance_km": round(dist, 3),
                     "source_url": source_url,

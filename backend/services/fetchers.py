@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import requests
+import googlemaps
 
 from config import settings
 
@@ -83,7 +84,7 @@ def fetch_open_meteo(lat: float, lng: float) -> dict[str, Any]:
             params={
                 "latitude": lat,
                 "longitude": lng,
-                "hourly": "temperature_2m,precipitation,weathercode",
+                "hourly": "temperature_2m,precipitation,weathercode,wind_speed_10m",
                 "forecast_days": 16,
                 "timezone": "Australia/Sydney",
             },
@@ -101,6 +102,7 @@ def _fallback_weather(lat: float, lng: float) -> dict[str, Any]:
     temps = []
     precips = []
     codes = []
+    winds = []
     for i in range(24 * 10):
         t = now + timedelta(hours=i)
         times.append(t.strftime("%Y-%m-%dT%H:%M"))
@@ -158,6 +160,7 @@ def fetch_eventbrite_nearby(lat: float, lng: float) -> dict[str, Any]:
                     "source_url": ev.get("url", ""),
                 }
             )
+        _enrich_with_travel_times(events_out, lat, lng)
         return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": events_out}
     except Exception:
         return {"source": "eventbrite", "location": {"lat": lat, "lng": lng}, "events": _demo_events(lat, lng)}
@@ -166,7 +169,7 @@ def fetch_eventbrite_nearby(lat: float, lng: float) -> dict[str, Any]:
 def _demo_events(lat: float, lng: float) -> list[dict[str, Any]]:
     start = datetime.now(timezone.utc) + timedelta(days=2)
     end = start + timedelta(hours=3)
-    return [
+    events = [
         {
             "name": "Local festival (demo)",
             "venue_lat": lat + 0.005,
@@ -179,6 +182,47 @@ def _demo_events(lat: float, lng: float) -> list[dict[str, Any]]:
             "source_url": "https://www.eventbrite.com/",
         }
     ]
+    _enrich_with_travel_times(events, lat, lng)
+    return events
+
+
+def _enrich_with_travel_times(events: list[dict[str, Any]], biz_lat: float, biz_lng: float) -> None:
+    key = settings.google_api_key
+    if not key or not events:
+        return
+    try:
+        gmaps = googlemaps.Client(key=key)
+        for ev in events:
+            vlat = ev.get("venue_lat")
+            vlng = ev.get("venue_lng")
+            if vlat is None or vlng is None:
+                continue
+            
+            # walk
+            try:
+                wm = gmaps.distance_matrix(
+                    origins=(biz_lat, biz_lng),
+                    destinations=(vlat, vlng),
+                    mode="walking"
+                )
+                if wm["rows"][0]["elements"][0]["status"] == "OK":
+                    ev["walk_minutes"] = int(wm["rows"][0]["elements"][0]["duration"]["value"] / 60)
+            except Exception as e:
+                print(f"[GEOCODE] Walk distance matrix failed: {e}")
+
+            # transit
+            try:
+                tm = gmaps.distance_matrix(
+                    origins=(biz_lat, biz_lng),
+                    destinations=(vlat, vlng),
+                    mode="transit"
+                )
+                if tm["rows"][0]["elements"][0]["status"] == "OK":
+                    ev["transit_minutes"] = int(tm["rows"][0]["elements"][0]["duration"]["value"] / 60)
+            except Exception as e:
+                print(f"[GEOCODE] Transit distance matrix failed: {e}")
+    except Exception as e:
+        print(f"[GEOCODE] Distance matrix client init failed: {e}")
 
 
 def fetch_google_places_nearby(lat: float, lng: float, business_type: str = "restaurant") -> dict[str, Any]:

@@ -41,6 +41,10 @@ area looking for food/drink) are relevant. Events that attract \
 DESTINATION-specific crowds (people going specifically for that experience \
 and unlikely to divert) are not relevant.
 
+*** IMPORTANT: Factor travel time into your decision ***
+The events now include `walk_minutes` and `transit_minutes` from the business.
+Events over 20 mins walking AND over 15 mins by transit should require a much stronger crowd spillover justification to be included. An author signing or niche cultural event at that distance should be excluded. A stadium event at that distance may still be included if transit spillover is likely.
+
 For a {business_profile['business_type']}, high relevance events include:
 - Large sporting events (crowds before/after games want quick food)
 - Street festivals and markets (general public foot traffic)
@@ -183,6 +187,139 @@ def llm_relevance_filter(
     return scored_events
 
 
-def get_crowd_confidence_modifier(crowd_type: str) -> float:
-    """Return confidence multiplier for a given crowd type."""
-    return CROWD_CONFIDENCE_MODIFIER.get(crowd_type, 0.70)
+def get_crowd_confidence_modifier(crowd_type: str, transit_minutes: float = 0.0) -> float:
+    """Return confidence multiplier for a given crowd type, applying decay for transit distance."""
+    base_modifier = CROWD_CONFIDENCE_MODIFIER.get(crowd_type, 0.70)
+    if crowd_type == "transit" and transit_minutes > 20:
+        decay = min(0.5, (transit_minutes - 20) * 0.02)
+        base_modifier = max(0.1, base_modifier - decay)
+    return base_modifier
+
+
+def build_weather_prompt(
+    weather_days: list[dict[str, Any]], business_profile: dict[str, str]
+) -> str:
+    return f"""
+You are a demand analyst for a {business_profile['business_type']} called \
+{business_profile.get('business_name', 'the business')} located in {business_profile.get('address', 'Sydney')}.
+
+Your job is to evaluate the holistic impact of the weather forecast on foot traffic and customer demand.
+
+Strictly adhere to these impact tiers for ALL evaluations:
+
+Tier 1: Neutral
+- Conditions: Clear, sunny, partly cloudy, mild, overcast, light cloud.
+- impact_direction: neutral
+- impact_magnitude: 0.0
+- impact_conf: 1.0
+
+Tier 2: Slight Drag  
+- Conditions: Light rain, drizzle, showers.
+- impact_direction: negative
+- impact_magnitude: 0.05
+- impact_conf: 0.95
+
+Tier 3: Meaningful
+- Conditions: Heavy rain, strong winds.
+- impact_direction: negative
+- impact_magnitude: 0.15
+- impact_conf: 0.90
+
+Tier 4: Severe
+- Conditions: Storms, hail, flooding, extreme heat above 38°C, heatwave warnings.
+- impact_direction: negative
+- impact_magnitude: 0.30
+- impact_conf: 0.85
+
+Reason about the full weather picture holistically — temperature, precipitation, wind, and conditions together. Consider Sydney-specific norms.
+
+Days to evaluate:
+{json.dumps(weather_days, indent=2)}
+
+Return a JSON array only. Each item must have:
+- forecast_date (string)
+- impact_direction (positive, negative, neutral)
+- impact_magnitude (float matching the tier above)
+- impact_conf (float matching the tier above)
+- reasoning (one plain English sentence)
+"""
+
+def _fallback_weather_scores(weather_days: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "forecast_date": d.get("forecast_date", ""),
+            "impact_direction": "neutral",
+            "impact_magnitude": 0.0,
+            "impact_conf": 0.70,
+            "reasoning": "Could not score — defaulting to neutral",
+        }
+        for d in weather_days
+    ]
+
+def llm_weather_relevance(
+    weather_days: list[dict[str, Any]],
+    business_profile: dict[str, str],
+    location_id: str,
+) -> list[dict[str, Any]]:
+    if not weather_days:
+        return []
+
+    prompt = build_weather_prompt(weather_days, business_profile)
+
+    logger.info(f"[WEATHER_LLM] Evaluating {len(weather_days)} days for {business_profile.get('business_name', 'location')}")
+    print(f"\n{'='*60}")
+    print(f"[WEATHER LLM FILTER] {business_profile.get('business_name', 'location')} ({business_profile['business_type']})")
+    print(f"[WEATHER_LLM] Evaluating {len(weather_days)} days")
+    print(f"{'='*60}")
+
+    key = settings.openrouter_api_key
+    if not key:
+        print("[WEATHER_LLM] No OPENROUTER_API_KEY — falling back to neutral scores")
+        return _fallback_weather_scores(weather_days)
+
+    try:
+        import requests
+
+        resp = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "qwen/qwen3-235b-a22b",
+                "messages": [{"role": "user", "content": prompt}],
+                "reasoning": {"enabled": True},
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw_text = data["choices"][0]["message"].get("content", "").strip()
+
+        # Strip markdown fences if model added them
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("```")[1]
+            if raw_text.startswith("json"):
+                raw_text = raw_text[4:]
+        raw_text = raw_text.strip()
+
+        scored_days = json.loads(raw_text)
+    except Exception as exc:
+        print(f"[WEATHER_LLM] OpenRouter call failed ({exc}) — falling back to neutral scores")
+        return _fallback_weather_scores(weather_days)
+
+    # Terminal log each result
+    if not isinstance(scored_days, list):
+        print("[WEATHER_LLM] Invalid LLM response format — falling back")
+        return _fallback_weather_scores(weather_days)
+        
+    for d in scored_days:
+        print(
+            f"\n  [{d.get('forecast_date')}] {str(d.get('impact_direction')).upper()}"
+            f" (mag: {d.get('impact_magnitude')}, conf: {d.get('impact_conf')})\n"
+            f"    Reason: {d.get('reasoning')}"
+        )
+
+    print(f"{'='*60}\n")
+    return scored_days

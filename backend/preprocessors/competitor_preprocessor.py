@@ -109,7 +109,7 @@ def process_competitor_signal(raw_json: dict[str, Any], location_id: str) -> lis
                     "signal_type": "google_places",
                     "forecast_dt": format_forecast_dt(slot_dt),
                     "uplift_pct": uplift,
-                    "confidence": avg_conf,
+                    "signal_conf": avg_conf,
                     "label": "Nearby competitor permanently closed",
                     "distance_km": None,
                     "source_url": "https://maps.google.com/",
