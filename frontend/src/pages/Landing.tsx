@@ -44,17 +44,17 @@ export default function Landing() {
       <header className="h-16 px-6 sm:px-12 flex items-center justify-between">
         <div className="flex items-center gap-2 text-xl font-bold tracking-tight text-gray-900 cursor-pointer">
           <img
-            src="/peakly_logo.png"
-            alt="Peakly"
+            src="/swell_logo.png"
+            alt="Swell"
             className="h-8 w-8 shrink-0 object-cover rounded-full mix-blend-multiply"
           />
-          Peakly
+          Swell
         </div>
       </header>
 
       <div className="mx-auto max-w-5xl px-4 py-24 sm:py-32">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="text-center">
-          <p className="text-lg sm:text-xl font-semibold uppercase text-blue-600 mb-6">Peakly</p>
+          <p className="text-lg sm:text-xl font-semibold uppercase text-blue-600 mb-6">Swell</p>
           <h1 className="mx-auto max-w-4xl text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl md:text-7xl">
             Hourly demand you can staff against —{" "}
             <GradientText

@@ -29,7 +29,7 @@ function LoadingItem({ label, done }: { label: string; done: boolean }) {
   );
 }
 
-const types = ["fast_food", "dine_in", "cafe", "bubble_tea", "retail"] as const;
+const types = ["fast_food", "dine_in", "cafe", "drinks or desserts", "retail"] as const;
 
 const defaultHours = Object.fromEntries(
   Array.from({ length: 7 }, (_, d) => [String(d), [9, 21]])
