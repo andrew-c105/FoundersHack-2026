@@ -1,5 +1,5 @@
 # Swell – Demand Forecasting for Local Businesses
-**Know before it gets busy.** Hourly busyness predictions for the next 60 days, powered by real-world signals — weather, events, transport, school terms, and competitor activity.
+**Know before it gets busy.** Hourly busyness predictions for the next 30 days, powered by real-world signals — weather, events, transport, school terms, and competitor activity.
 Built for hackathon demo.
 
 ## How It Works
@@ -30,7 +30,7 @@ Swell monitors external signals around your location and synthesises them into a
 
 - **Popular Times** (via the `populartimes` library and Google API key when configured) to seed the baseline busyness curve by day-of-week and hour.
 
-There is **no** live ABS demographic ingestion or separate “signal map” page in the frontend; the API exposes `GET /api/locations/{id}/map-signals` if you want to build one.
+There is **no** live ABS demographic ingestion or separate "signal map" page in the frontend; the API exposes `GET /api/locations/{id}/map-signals` if you want to build one.
 
 ## LLM relevance filtering (events & weather)
 
@@ -71,7 +71,6 @@ Create `backend/.env` (see repo root `.env.example` for a starting list). Common
 Frontend optional: `frontend/.env` with `VITE_API_URL` (defaults to `http://127.0.0.1:8000`).
 
 ### Backend
-
 ```bash
 cd backend
 python -m venv venv
@@ -81,7 +80,6 @@ uvicorn main:app --reload --port 8000
 ```
 
 ### Frontend
-
 ```bash
 cd frontend
 npm install
@@ -101,7 +99,7 @@ Create `backend/.env` — see `.env.example` for the full list.
 | `OPENROUTER_API_KEY` | LLM filtering and brief generation |
 | `DEV_SYNTHETIC_SIGNALS` | If `true`, injects demo rows for development |
 
-### Typical flow
+## API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -110,13 +108,13 @@ Create `backend/.env` — see `.env.example` for the full list.
 | POST | /api/locations/{id}/train | Train model only |
 | POST | /api/locations/{id}/predict | Run inference only |
 | POST | /api/locations/{id}/bootstrap-model | Train + predict |
-| GET | /api/locations/{id}/predictions | 60-day hourly forecast |
+| GET | /api/locations/{id}/predictions | 30-day hourly forecast |
 | GET | /api/locations/{id}/brief | Plain-English brief for a date |
 | GET | /api/locations/{id}/signals/day | Aggregated signals for a calendar day |
 | GET | /api/locations/{id}/alerts | Hours exceeding deviation threshold |
 | GET | /api/locations/{id}/accuracy | Prediction vs actual history |
 
-## Useful API routes
+## Signal Sources
 
 **Polled every 6 hours**
 - Open-Meteo — hourly weather forecast (temperature, precipitation, conditions)
@@ -145,7 +143,7 @@ Create `backend/.env` — see `.env.example` for the full list.
 | Landing | Value proposition, feature cards, single CTA |
 | Onboarding | 4-step wizard: business type → address → trading hours → signal confirmation |
 | Today's Brief | AI-written brief, 4 metric cards, signal breakdown chart, schedule approval |
-| Forecast | 60-day heatmap, day view with hourly bars, alerts tab |
+| Forecast | 30-day heatmap, day view with hourly bars, alerts tab |
 | Location Settings | Business profile, signal toggles, accuracy scoreboard |
 | Accuracy History | Predicted vs actual line chart, per-signal reliability |
 
