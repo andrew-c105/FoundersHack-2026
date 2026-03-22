@@ -5,6 +5,7 @@ import json
 import math
 from datetime import datetime, timezone
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException
 
@@ -124,9 +125,8 @@ def brief(location_id: str, date: Optional[str] = None) -> dict:
         raise HTTPException(status_code=404, detail="Location not found")
     if date is None:
         date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    text = db.get_daily_brief(location_id, date)
-    if not text:
-        text = generate_brief(location_id, date)
+    # Always regenerate — generate_brief deletes stale cache internally
+    text = generate_brief(location_id, date)
     hours = db.get_predictions_for_date(location_id, date)
     peak = max(hours, key=lambda h: h["busyness_index"]) if hours else None
     return {"date": date, "brief": text, "peak_hour": peak, "hours": hours}
@@ -231,6 +231,22 @@ def signals_day(location_id: str, date: str) -> dict:
 
     from collections import defaultdict
 
+    _syd = ZoneInfo("Australia/Sydney")
+
+    def _utc_str_to_sydney_hour(fdt: str) -> int | None:
+        """Parse a UTC forecast_dt string and return the Sydney local hour."""
+        raw = fdt.strip()
+        if len(raw) < 13:
+            return None
+        has_zone = raw.endswith("Z") or raw[-6] in ("+", "-")
+        iso = raw if has_zone else f"{raw[:19]}+00:00"
+        iso = iso.replace("Z", "+00:00")
+        try:
+            dt = datetime.fromisoformat(iso).astimezone(_syd)
+            return dt.hour
+        except ValueError:
+            return None
+
     all_signals = db.get_processed_signals_for_date(location_id, date)
 
     import json
@@ -278,10 +294,11 @@ def signals_day(location_id: str, date: str) -> dict:
             except json.JSONDecodeError:
                 pass
 
+        # Convert UTC forecast_dt → Sydney local hour for display
         fdt = s.get("forecast_dt", "")
-        if len(fdt) >= 13:
-            h = int(fdt[11:13])
-            g["hours"].append(h)
+        syd_hour = _utc_str_to_sydney_hour(fdt)
+        if syd_hour is not None:
+            g["hours"].append(syd_hour)
 
     signals_out = []
     for key, g in grouped.items():
@@ -334,9 +351,9 @@ def signals_day(location_id: str, date: str) -> dict:
     # Get the brief for this date
     brief_text = ""
     try:
-        brief_row = db.get_daily_brief(location_id, date)
-        if brief_row:
-            brief_text = brief_row.get("brief_text", "")
+        brief_str = db.get_daily_brief(location_id, date)
+        if brief_str:
+            brief_text = brief_str
     except Exception:
         pass
 

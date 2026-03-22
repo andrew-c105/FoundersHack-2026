@@ -1,11 +1,24 @@
 import os
 import json
 import logging
+from datetime import datetime, time, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import database as db
+from preprocessors.common import format_forecast_dt
 
 logger = logging.getLogger(__name__)
+
+_SYDNEY_TZ = ZoneInfo("Australia/Sydney")
+
+
+def _sydney_to_utc(date_str: str, hour: int) -> str:
+    """Convert a Sydney local date + hour to a UTC forecast_dt key."""
+    d = datetime.strptime(date_str, "%Y-%m-%d").date()
+    local = datetime.combine(d, time(hour, 0, 0), tzinfo=_SYDNEY_TZ)
+    return format_forecast_dt(local.astimezone(timezone.utc))
+
 
 def inject_synthetic_signals(location_id: str) -> None:
     print("[SYNTHETIC] Injecting synthetic signals for 2026-03-23 for development testing.")
@@ -20,7 +33,7 @@ def inject_synthetic_signals(location_id: str) -> None:
     signals.append({
         "location_id": location_id,
         "signal_type": "open_meteo",
-        "forecast_dt": "2026-03-23",
+        "forecast_date": "2026-03-23",
         "uplift_pct": -0.14,
         "signal_conf": 0.85,
         "label": "Weather Notice: Monday 23 Mar",
@@ -53,7 +66,7 @@ def inject_synthetic_signals(location_id: str) -> None:
     signals.append({
         "location_id": location_id,
         "signal_type": "live_traffic",
-        "forecast_dt": "2026-03-23",
+        "forecast_date": "2026-03-23",
         "uplift_pct": -0.05,
         "signal_conf": 0.95,
         "label": "Road Closure - George Street Northbound (Hazard)",
@@ -71,7 +84,7 @@ def inject_synthetic_signals(location_id: str) -> None:
     signals.append({
         "location_id": location_id,
         "signal_type": "google_places",
-        "forecast_dt": "2026-03-23",
+        "forecast_date": "2026-03-23",
         "uplift_pct": 0.07,
         "signal_conf": 0.88,
         "label": "Bob's Burgers George Street - Permanently Closed",
@@ -91,7 +104,7 @@ def inject_synthetic_signals(location_id: str) -> None:
     signals.append({
         "location_id": location_id,
         "signal_type": "eventbrite",
-        "forecast_dt": "2026-05-21",
+        "forecast_date": "2026-05-21",
         "uplift_pct": 0.18,
         "signal_conf": 0.92,
         "label": "George Street Night Market — Friday Autumn Edition",
@@ -118,7 +131,7 @@ def inject_synthetic_signals(location_id: str) -> None:
     signals.append({
         "location_id": location_id,
         "signal_type": "sporting_event",
-        "forecast_dt": "2026-04-21",
+        "forecast_date": "2026-04-21",
         "uplift_pct": 0.22,
         "signal_conf": 0.88,
         "label": "NRL — NSW Waratahs vs Brumbies @ Allianz Stadium",
@@ -146,32 +159,30 @@ def inject_synthetic_signals(location_id: str) -> None:
         }
     })
 
-    # Also map these into per-hour rows for the ML model predict pipeline if needed
+    # Expand every signal into per-hour rows with proper UTC forecast_dt keys.
+    # This replaces bare date strings like "2026-03-23" with UTC hour buckets
+    # so they match the key format used by predictions and lookups.
     hourly_rows = []
-    
-    # Static daily representations without hour specificity
-    hourly_rows.extend(signals)
-    
-    # Generate explicit hourly rows for traffic and places if the pipeline expects them
+
     for s in signals:
-        if s["signal_type"] == "live_traffic":
-            for h in range(14, 23):
-                hourly_rows.append({
-                    **s,
-                    "forecast_dt": f"2026-03-23T{h:02d}:00:00"
-                })
-        elif s["signal_type"] == "google_places":
-            for h in range(6, 24):
-                hourly_rows.append({
-                    **s,
-                    "forecast_dt": f"2026-03-23T{h:02d}:00:00"
-                })
-        elif s["signal_type"] in ("eventbrite", "sporting_event") and s.get("forecast_dt") == "2026-05-22":
-            for h in range(17, 24):
-                hourly_rows.append({
-                    **s,
-                    "forecast_dt": f"2026-05-22T{h:02d}:00:00"
-                })
+        date_str = s["forecast_date"]
+        extra = s.get("extra") or {}
+        start_hour = extra.get("start_hour", 0)
+        end_hour = extra.get("end_hour", 23)
+
+        for h in range(start_hour, end_hour + 1):
+            hourly_rows.append({
+                "location_id": s["location_id"],
+                "signal_type": s["signal_type"],
+                "forecast_dt": _sydney_to_utc(date_str, h),
+                "uplift_pct": s["uplift_pct"],
+                "signal_conf": s["signal_conf"],
+                "label": s["label"],
+                "description": s.get("description"),
+                "distance_km": s["distance_km"],
+                "source_url": s["source_url"],
+                "extra": s.get("extra"),
+            })
 
     # Write synthetic signals to DB
     with db.db_session() as conn:

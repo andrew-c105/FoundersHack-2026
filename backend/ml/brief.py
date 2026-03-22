@@ -2,19 +2,41 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import database as db
 from config import settings
 
+_SYDNEY_TZ = ZoneInfo("Australia/Sydney")
+
+
+def _utc_to_sydney_label(utc_iso: str) -> str:
+    """Convert a UTC ISO string to a human-readable Sydney local time label.
+
+    Example output: '7:00 PM, Monday 23 Mar'
+    """
+    raw = utc_iso.strip()
+    has_zone = raw.endswith("Z") or raw[-6] in ("+", "-")
+    iso = raw if has_zone else f"{raw[:19]}+00:00"
+    iso = iso.replace("Z", "+00:00")
+    dt = datetime.fromisoformat(iso).astimezone(_SYDNEY_TZ)
+    return dt.strftime("%-I:%M %p, %A %-d %b")
+
 
 def generate_brief(location_id: str, target_date: str) -> str:
     """Plain English brief via Gemini; falls back to template if no API key."""
+    # Fix 4: clear stale cached brief so we always regenerate
+    db.delete_daily_brief(location_id, target_date)
+
     hours = db.get_predictions_for_date(location_id, target_date)
     if not hours:
         return "No forecast yet for this date. Run signal refresh and prediction from settings."
 
     peak_hour = max(hours, key=lambda h: h["busyness_index"])
     signals = db.get_processed_signals_for_hour(location_id, peak_hour["forecast_dt"])
+
+    # Fix 3: convert UTC forecast_dt to human-readable Sydney time for the LLM
+    peak_label = _utc_to_sydney_label(peak_hour["forecast_dt"])
 
     loc = db.get_location(location_id) or {}
     profile = {
@@ -23,7 +45,7 @@ def generate_brief(location_id: str, target_date: str) -> str:
     }
 
     payload = {
-        "peak_hour": peak_hour["forecast_dt"],
+        "peak_hour": peak_label,
         "busyness_index": peak_hour["busyness_index"],
         "deviation_pct": peak_hour["deviation_pct"],
         "forecast_confidence": peak_hour["forecast_confidence"],

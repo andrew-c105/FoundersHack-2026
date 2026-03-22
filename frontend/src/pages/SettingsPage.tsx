@@ -160,55 +160,6 @@ export default function SettingsPage() {
           })}
         </div>
       </div>
-
-      {/* POS Data */}
-      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-6">POS data</h2>
-        <div className="divide-y divide-gray-100 border-t border-gray-100">
-          <div className="flex items-center justify-between py-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Last upload</h3>
-              <p className="mt-0.5 text-sm text-gray-500">pos_history_march.csv — 14 Mar 2026</p>
-            </div>
-            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Connected</span>
-          </div>
-          <div className="flex items-center justify-between py-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Model trained on</h3>
-              <p className="mt-0.5 text-sm text-gray-500">52 weeks of hourly data</p>
-            </div>
-            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Up to date</span>
-          </div>
-          <div className="flex items-center justify-between pt-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Auto-sync</h3>
-              <p className="mt-0.5 text-sm text-gray-500">Upload new CSV weekly to improve accuracy</p>
-            </div>
-            <button className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition">
-              Upload new data
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Forecast Accuracy */}
-      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-6">Forecast accuracy — last 30 days</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-gray-100 bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
-            <div className="text-3xl font-black text-green-600">91%</div>
-            <div className="text-sm font-medium text-gray-500 mt-2">within 10% accuracy</div>
-          </div>
-          <div className="rounded-xl border border-gray-100 bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
-            <div className="text-3xl font-black text-gray-900">847</div>
-            <div className="text-sm font-medium text-gray-500 mt-2">hourly predictions made</div>
-          </div>
-          <div className="rounded-xl border border-gray-100 bg-gray-50 flex flex-col items-center justify-center p-6 text-center">
-            <div className="text-3xl font-black text-green-600">+$1,240</div>
-            <div className="text-sm font-medium text-gray-500 mt-2">est. labour savings</div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

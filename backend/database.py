@@ -328,19 +328,32 @@ def get_processed_signals_for_hour(location_id: str, forecast_dt_iso: str) -> li
 
 
 def get_processed_signals_for_date(location_id: str, date_str: str) -> list[dict[str, Any]]:
-    """Get all processed signals for a given date (YYYY-MM-DD prefix match)."""
+    """Get all processed signals whose UTC forecast_dt falls on a Sydney calendar date."""
+    keys = _forecast_dt_keys_for_sydney_calendar_date(date_str)
+    if not keys:
+        return []
+    placeholders = ",".join("?" * len(keys))
     with db_session() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT signal_type, forecast_dt, uplift_pct, signal_conf, label, description, distance_km, source_url, extra_json
             FROM processed_signals
-            WHERE location_id = ? AND forecast_dt LIKE ?
+            WHERE location_id = ? AND forecast_dt IN ({placeholders})
             ORDER BY forecast_dt
             """,
-            (location_id, f"{date_str}%"),
+            (location_id, *keys),
         ).fetchall()
     return [dict(r) for r in rows]
 
+
+def delete_daily_brief(location_id: str, target_date: str) -> None:
+    """Remove cached brief so generate_brief always produces fresh text."""
+    with db_session() as conn:
+        conn.execute(
+            "DELETE FROM daily_briefs WHERE location_id = ? AND target_date = ?",
+            (location_id, target_date),
+        )
+    
 
 def _forecast_dt_keys_for_sydney_calendar_date(calendar_date: str) -> list[str]:
     """UTC hour bucket keys for each local hour on calendar_date in Australia/Sydney."""

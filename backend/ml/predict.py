@@ -30,8 +30,9 @@ def predict_forecast_horizon(location_id: str) -> list[dict[str, Any]]:
     predictions: list[dict[str, Any]] = []
 
     for dt in next_forecast_horizon_hourly():
-        dow = dt.weekday()
-        hour = dt.hour
+        local_dt = dt.astimezone(_SYDNEY_TZ)
+        dow = local_dt.weekday()
+        hour = local_dt.hour
         key = format_forecast_dt(dt)
 
         event_uplift = db.get_signal_uplift(location_id, ["ticketmaster", "eventbrite"], key)
