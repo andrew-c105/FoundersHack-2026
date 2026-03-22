@@ -4,11 +4,14 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import googlemaps
 
-from config import settings
+from config import FORECAST_HORIZON_DAYS, settings
 from preprocessors.common import format_forecast_dt, haversine_km
+
+_SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 
 
 def _load_json(name: str) -> Any:
@@ -21,52 +24,50 @@ def _load_json(name: str) -> Any:
 
 def process_static_signal(raw_json: dict[str, Any], location_id: str) -> list[dict[str, Any]]:
     """
-    raw_json carries: location {lat,lng}, state, optional forecast_days (default 30)
+    raw_json carries: location {lat,lng}, state, optional forecast_days (default: FORECAST_HORIZON_DAYS)
     Loads school_terms, public_holidays, fixtures, uni_calendar from static JSON.
     """
     loc = raw_json.get("location") or {}
     biz_lat = float(loc.get("lat", -33.8688))
     biz_lng = float(loc.get("lng", 151.2093))
     state = str(raw_json.get("state") or "NSW").upper()
-    days = int(raw_json.get("forecast_days") or 30)
+    days = int(raw_json.get("forecast_days") or FORECAST_HORIZON_DAYS)
 
     school_terms = _load_json("school_terms.json")
     holidays = _load_json("public_holidays.json")
     fixtures = _load_json("sport_fixtures.json")
     uni_cal = _load_json("uni_calendar.json")
 
-    now = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    now_syd = datetime.now(_SYDNEY_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
     out: list[dict[str, Any]] = []
 
-    def hours_for_date(d: datetime) -> list[datetime]:
-        return [d.replace(hour=h, tzinfo=timezone.utc) for h in range(24)]
-
     for offset in range(days):
-        day = now + timedelta(days=offset)
-        ds = day.strftime("%Y-%m-%d")
+        day_mid_syd = now_syd + timedelta(days=offset)
+        ds = day_mid_syd.strftime("%Y-%m-%d")
 
         is_school_hol = _in_school_holiday(school_terms, state, ds)
         is_pub_hol = _is_public_holiday(holidays, state, ds)
         sport = _sporting_fixture_near(fixtures, biz_lat, biz_lng, ds)
         uni_exam, uni_oweek = _uni_flags(uni_cal, biz_lat, biz_lng, ds)
 
-        for hr in hours_for_date(day):
+        for h in range(24):
+            hr_utc = (day_mid_syd + timedelta(hours=h)).astimezone(timezone.utc)
             if is_school_hol:
                 out.append(
-                    _row(location_id, "static_school", hr, 0.08, 0.99, "School holiday", "School holiday period, expect changes in local foot traffic.", None)
+                    _row(location_id, "static_school", hr_utc, 0.08, 0.99, "School holiday", "School holiday period, expect changes in local foot traffic.", None)
                 )
             if is_pub_hol:
                 hn = holidays.get(state, {}).get(ds) or "Public holiday"
                 out.append(
-                    _row(location_id, "static_holiday", hr, 0.12, 0.99, str(hn), "Public holiday driving significant changes to baselines.", None)
+                    _row(location_id, "static_holiday", hr_utc, 0.12, 0.99, str(hn), "Public holiday driving significant changes to baselines.", None)
                 )
             if uni_exam:
                 out.append(
-                    _row(location_id, "static_uni", hr, -0.06, 0.90, "University exam period", "University exam period, potentially lower foot traffic.", None)
+                    _row(location_id, "static_uni", hr_utc, -0.06, 0.90, "University exam period", "University exam period, potentially lower foot traffic.", None)
                 )
             if uni_oweek:
                 out.append(
-                    _row(location_id, "static_uni", hr, 0.15, 0.95, "O-Week / orientation", "University O-Week/orientation, potentially higher foot traffic.", None)
+                    _row(location_id, "static_uni", hr_utc, 0.15, 0.95, "O-Week / orientation", "University O-Week/orientation, potentially higher foot traffic.", None)
                 )
 
         # Sport fixtures: only emit rows for the match time window
@@ -80,12 +81,12 @@ def process_static_signal(raw_json: dict[str, Any], location_id: str) -> list[di
             conf = 1.0
 
             for h in range(start_h, end_h + 1):
-                hr_dt = day.replace(hour=h, tzinfo=timezone.utc)
+                hr_utc = (day_mid_syd + timedelta(hours=h)).astimezone(timezone.utc)
                 out.append(
                     _row(
                         location_id,
                         "static_sport",
-                        hr_dt,
+                        hr_utc,
                         0.20,
                         conf,
                         sport.get("label", "Sporting fixture"),

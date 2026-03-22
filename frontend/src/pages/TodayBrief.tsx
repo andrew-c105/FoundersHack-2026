@@ -16,8 +16,41 @@ import {
 
 import { api, type PredictionRow, type DaySignal } from "../api";
 
-function dateKey(dt: string) {
-  return dt.slice(0, 10);
+/** Backend stores UTC hour buckets as `YYYY-MM-DDTHH:MM:00` without a zone suffix. */
+function parseUtcForecastInstant(forecast_dt: string): Date {
+  const raw = forecast_dt.trim();
+  if (raw.length === 10) {
+    return new Date(`${raw}T00:00:00Z`);
+  }
+  const hasZone =
+    raw.endsWith("Z") || /[+-]\d{2}:?\d{2}$/.test(raw);
+  const iso = !hasZone && raw.length >= 19 ? `${raw.slice(0, 19)}Z` : raw;
+  return new Date(iso);
+}
+
+/** Calendar date in Australia/Sydney for a prediction row (matches date picker). */
+function sydneyDateKeyFromForecastDt(forecast_dt: string): string {
+  return parseUtcForecastInstant(forecast_dt).toLocaleDateString("en-CA", {
+    timeZone: "Australia/Sydney",
+  });
+}
+
+function sydneyHourFromForecastDt(forecast_dt: string): number {
+  const d = parseUtcForecastInstant(forecast_dt);
+  const parts = new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Sydney",
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const h = parts.find((p) => p.type === "hour")?.value;
+  return h != null ? parseInt(h, 10) : 0;
+}
+
+function localCalendarDateKey(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function fmtHour(h: number) {
@@ -28,6 +61,7 @@ function signalTypeLabel(st: string) {
   const m: Record<string, string> = {
     ticketmaster: "event",
     eventbrite: "event",
+    sporting_event: "sport",
     open_meteo: "weather",
     google_places: "competitor",
     transport_nsw: "transport",
@@ -58,7 +92,7 @@ const itemVariants = {
 
 export default function TodayBrief() {
   const id = localStorage.getItem("locationId")!;
-  const [day, setDay] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [day, setDay] = useState<string>(() => localCalendarDateKey());
 
   const [brief, setBrief] = useState<string>("");
   const [peak, setPeak] = useState<Record<string, unknown> | null>(null);
@@ -133,7 +167,7 @@ export default function TodayBrief() {
   const heatmapValues = useMemo(() => {
     const m: Record<string, number> = {};
     for (const p of preds) {
-      const d = dateKey(p.forecast_dt);
+      const d = sydneyDateKeyFromForecastDt(p.forecast_dt);
       m[d] = Math.max(m[d] || 0, Math.abs(p.deviation_pct));
     }
     return Object.entries(m).map(([date, v]) => ({
@@ -145,20 +179,20 @@ export default function TodayBrief() {
   const startDate = useMemo(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 1);
-    d.setDate(d.getDate() + 30);
+    d.setDate(d.getDate() + 60);
     return d;
   }, []);
 
   const endDate = useMemo(() => {
     const d = new Date();
-    d.setDate(d.getDate() + 30);
+    d.setDate(d.getDate() + 70);
     return d;
   }, []);
 
   const dayRows = useMemo(
     () =>
       preds
-        .filter((p) => dateKey(p.forecast_dt) === day)
+        .filter((p) => sydneyDateKeyFromForecastDt(p.forecast_dt) === day)
         .sort((a, b) => a.forecast_dt.localeCompare(b.forecast_dt)),
     [preds, day]
   );
@@ -169,11 +203,11 @@ export default function TodayBrief() {
     for (let i = 1; i < dayRows.length; i++) {
       if (dayRows[i].busyness_index > dayRows[maxIdx].busyness_index) maxIdx = i;
     }
-    const peakH = parseInt(dayRows[maxIdx].forecast_dt.slice(11, 13), 10);
+    const peakH = sydneyHourFromForecastDt(dayRows[maxIdx].forecast_dt);
     const threshold = dayRows[maxIdx].busyness_index * 0.8;
     let startH = peakH, endH = peakH;
     for (const r of dayRows) {
-      const h = parseInt(r.forecast_dt.slice(11, 13), 10);
+      const h = sydneyHourFromForecastDt(r.forecast_dt);
       if (r.busyness_index >= threshold) {
         if (h < startH) startH = h;
         if (h > endH) endH = h;
@@ -184,7 +218,7 @@ export default function TodayBrief() {
 
   const dayLabel = useMemo(() => {
     const d = new Date(day + "T12:00:00");
-    const isToday = day === new Date().toISOString().slice(0, 10);
+    const isToday = day === localCalendarDateKey();
     return isToday ? `Today (${d.toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })})` : d.toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "short" });
   }, [day]);
 
@@ -257,7 +291,12 @@ export default function TodayBrief() {
             {
               label: "Peak hour",
               value: peak
-                ? new Date(String(peak.forecast_dt)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
+                ? parseUtcForecastInstant(String(peak.forecast_dt)).toLocaleTimeString("en-AU", {
+                    timeZone: "Australia/Sydney",
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
                 : "—",
               tooltip: "The specific hour during this 24-hour period expected to have the highest foot traffic."
             },
@@ -312,7 +351,12 @@ export default function TodayBrief() {
           {/* Bar chart from day view */}
           <div className="h-56 rounded-2xl border border-gray-100 bg-white shadow-sm p-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dayRows.map((r) => ({ ...r, h: r.forecast_dt.slice(11, 16) }))}>
+              <BarChart
+                data={dayRows.map((r) => ({
+                  ...r,
+                  h: `${String(sydneyHourFromForecastDt(r.forecast_dt)).padStart(2, "0")}:00`,
+                }))}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="h" tick={{ fill: "#64748b", fontSize: 10 }} />
                 <YAxis tick={{ fill: "#64748b" }} />
@@ -474,12 +518,21 @@ function SignalCard({ signal }: { signal: any }) {
         {isWeather && (signal.outlier_alert || signal.outlier) ? null : (
           <p className="mt-1 text-sm text-gray-600 leading-relaxed">
             {signal.description || (
-              signal.signal_type.includes("sport") ? "Scheduled fixture at nearby stadium. Expect localized congestion." :
-                signal.signal_type.includes("event") ? "Local event scheduled nearby." :
-                  signal.signal_type.includes("holiday") ? "Public holiday driving significant changes to baselines." :
-                    signal.signal_type.includes("school") ? "School term impact period influencing foot traffic." :
-                      signal.signal_type === "open_meteo" && signal.outlier ? "Weather outlier detected, impacting foot traffic." :
-                        "Model anomaly flag generated from location activity."
+              signal.signal_type === "sporting_event" || signal.signal_type === "static_sport"
+                ? "Scheduled fixture at nearby stadium. Expect localized congestion."
+                : signal.signal_type === "eventbrite" || signal.signal_type === "ticketmaster"
+                  ? "Local ticketed event scheduled nearby."
+                  : signal.signal_type === "google_places"
+                    ? "Nearby place change may shift local demand."
+                    : signal.signal_type === "live_traffic" || signal.signal_type === "transport_nsw"
+                      ? "Transport disruption may affect pedestrian approach routes."
+                      : signal.signal_type.includes("holiday")
+                        ? "Public holiday driving significant changes to baselines."
+                        : signal.signal_type.includes("school")
+                          ? "School term impact period influencing foot traffic."
+                          : signal.signal_type === "open_meteo" && signal.outlier
+                            ? "Weather outlier detected, impacting foot traffic."
+                            : "Model anomaly flag generated from location activity."
             )}
           </p>
         )}

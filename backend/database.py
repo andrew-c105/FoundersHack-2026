@@ -1,11 +1,15 @@
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any, Generator, Optional
+from zoneinfo import ZoneInfo
 
 from config import settings
+from preprocessors.common import format_forecast_dt
+
+_SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 
 
 def _utc_now_iso() -> str:
@@ -314,7 +318,7 @@ def get_processed_signals_for_hour(location_id: str, forecast_dt_iso: str) -> li
     with db_session() as conn:
         rows = conn.execute(
             """
-            SELECT signal_type, forecast_dt, uplift_pct, signal_conf, label, distance_km, source_url
+            SELECT signal_type, forecast_dt, uplift_pct, signal_conf, label, description, distance_km, source_url, extra_json
             FROM processed_signals
             WHERE location_id = ? AND forecast_dt = ?
             """,
@@ -328,7 +332,7 @@ def get_processed_signals_for_date(location_id: str, date_str: str) -> list[dict
     with db_session() as conn:
         rows = conn.execute(
             """
-            SELECT signal_type, forecast_dt, uplift_pct, signal_conf, label, distance_km, source_url, extra_json
+            SELECT signal_type, forecast_dt, uplift_pct, signal_conf, label, description, distance_km, source_url, extra_json
             FROM processed_signals
             WHERE location_id = ? AND forecast_dt LIKE ?
             ORDER BY forecast_dt
@@ -336,6 +340,16 @@ def get_processed_signals_for_date(location_id: str, date_str: str) -> list[dict
             (location_id, f"{date_str}%"),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def _forecast_dt_keys_for_sydney_calendar_date(calendar_date: str) -> list[str]:
+    """UTC hour bucket keys for each local hour on calendar_date in Australia/Sydney."""
+    d = datetime.strptime(calendar_date, "%Y-%m-%d").date()
+    keys: list[str] = []
+    for h in range(24):
+        local = datetime.combine(d, time(h, 0, 0), tzinfo=_SYDNEY_TZ)
+        keys.append(format_forecast_dt(local.astimezone(timezone.utc)))
+    return keys
 
 
 def write_predictions(rows: list[dict[str, Any]]) -> None:
@@ -383,19 +397,21 @@ def get_predictions_for_location(
 
 
 def get_predictions_for_date(location_id: str, target_date: str) -> list[dict[str, Any]]:
-    """target_date YYYY-MM-DD"""
-    start = f"{target_date}T00:00:00"
-    end = f"{target_date}T23:00:00"
+    """target_date YYYY-MM-DD interpreted as a full Sydney calendar day (matches UI date picker)."""
+    keys = _forecast_dt_keys_for_sydney_calendar_date(target_date)
+    if not keys:
+        return []
+    placeholders = ",".join("?" * len(keys))
     with db_session() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT * FROM predictions
-            WHERE location_id = ? AND forecast_dt >= ? AND forecast_dt <= ?
-            ORDER BY forecast_dt
+            WHERE location_id = ? AND forecast_dt IN ({placeholders})
             """,
-            (location_id, start, end),
+            (location_id, *keys),
         ).fetchall()
-    return [dict(r) for r in rows]
+    by_key = {dict(r)["forecast_dt"]: dict(r) for r in rows}
+    return [by_key[k] for k in keys if k in by_key]
 
 
 def save_daily_brief(location_id: str, target_date: str, text: str) -> None:

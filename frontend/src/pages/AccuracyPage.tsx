@@ -55,7 +55,7 @@ export default function AccuracyPage() {
       </div>
       {lastMae != null && (
         <div className="rounded-2xl border border-gray-100 bg-white shadow-sm px-5 py-4 text-sm text-gray-700">
-          Last training MAE (hold-out): <span className="font-mono text-blue-600 font-semibold">{lastMae.toFixed(2)}</span>{" "}
+          Last training Mean Absolute Error (hold-out): <span className="font-mono text-blue-600 font-semibold">{lastMae.toFixed(2)}</span>{" "}
           busyness points
         </div>
       )}

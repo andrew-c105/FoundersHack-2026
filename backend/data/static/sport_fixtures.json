@@ -138,6 +138,15 @@
     "stadium": "Campbelltown Sports Stadium, Sydney"
   },
   {
+    "competition": "NRL",
+    "match_date": "2026-05-22",
+    "match_time": "19:35",
+    "match_end_time": "21:35",
+    "home_team": "NSW Waratahs",
+    "away_team": "Brumbies",
+    "stadium": "Allianz Stadium, Sydney"
+  },
+  {
     "competition": "A-League",
     "match_date": "2026-03-22",
     "match_time": "15:00",

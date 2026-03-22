@@ -73,6 +73,7 @@ export type DaySignal = {
   outlier?: boolean;
   outlier_hours?: string;
   outlier_label?: string;
+  outlier_alert?: string | null;
 };
 
 export type DaySignalsResponse = {

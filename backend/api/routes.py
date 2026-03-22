@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException
 import database as db
 from api.schemas import LocationUpdate, OnboardingRequest
 from ml.brief import generate_brief
-from ml.predict import get_alerts, predict_next_30_days
+from ml.predict import get_alerts, predict_forecast_horizon
 from ml.training import train_model
 from services.pipeline import create_location_from_onboarding, refresh_signals_for_location
 
@@ -92,7 +92,7 @@ def predict(location_id: str) -> dict:
     if not db.get_location(location_id):
         raise HTTPException(status_code=404, detail="Location not found")
     try:
-        preds = predict_next_30_days(location_id)
+        preds = predict_forecast_horizon(location_id)
     except FileNotFoundError:
         raise HTTPException(status_code=400, detail="Train the model first") from None
     return {"count": len(preds)}
@@ -100,12 +100,12 @@ def predict(location_id: str) -> dict:
 
 @router.post("/locations/{location_id}/bootstrap-model")
 def bootstrap_model(location_id: str) -> dict:
-    """Train XGBoost then run 30-day inference (typical post-onboarding flow)."""
+    """Train XGBoost then run full-horizon inference (typical post-onboarding flow)."""
     if not db.get_location(location_id):
         raise HTTPException(status_code=404, detail="Location not found")
     try:
         _, mae = train_model(location_id)
-        preds = predict_next_30_days(location_id)
+        preds = predict_forecast_horizon(location_id)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return {"mae": mae, "predictions": len(preds)}
@@ -216,6 +216,13 @@ def event_reasoning_debug(location_id: str, event_name: str) -> dict:
     }
 
 
+def _nonempty_str(val: object) -> str | None:
+    if val is None:
+        return None
+    s = str(val).strip()
+    return s if s else None
+
+
 @router.get("/locations/{location_id}/signals/day")
 def signals_day(location_id: str, date: str) -> dict:
     """Return deduplicated signals active on a date with start/end hour ranges."""
@@ -240,6 +247,7 @@ def signals_day(location_id: str, date: str) -> dict:
         "impact_magnitude": 0.0,
         "extra": {},
         "hours": [],
+        "description_col": None,
     })
 
     for s in all_signals:
@@ -253,7 +261,12 @@ def signals_day(location_id: str, date: str) -> dict:
         g["signal_conf"] = max(g["signal_conf"], float(s.get("signal_conf", 0)))
         g["distance_km"] = s.get("distance_km") or g["distance_km"]
         g["source_url"] = s.get("source_url") or g["source_url"]
-        
+        dbt = _nonempty_str(s.get("description"))
+        if dbt:
+            prev = _nonempty_str(g.get("description_col"))
+            if not prev or len(dbt) > len(prev):
+                g["description_col"] = dbt
+
         # Unpack extra_json
         ej = s.get("extra_json")
         if ej:
@@ -283,6 +296,11 @@ def signals_day(location_id: str, date: str) -> dict:
         start_hour = g["extra"].get("start_hour", hours[0] if hours else 0)
         end_hour = g["extra"].get("end_hour", hours[-1] if hours else 23)
         
+        desc_col = _nonempty_str(g.get("description_col"))
+        desc_extra = _nonempty_str(g["extra"].get("description"))
+        desc_reason = _nonempty_str(g["extra"].get("reasoning"))
+        final_description = desc_col or desc_extra or desc_reason
+
         sig_data = {
             "label": g["label"],
             "signal_type": g["signal_type"],
@@ -292,13 +310,22 @@ def signals_day(location_id: str, date: str) -> dict:
             "source_url": g["source_url"],
             "start_hour": start_hour,
             "end_hour": end_hour,
-            "description": g["extra"].get("description"),
+            "description": final_description,
             "impact_direction": g.get("impact_direction", "neutral"),
             "impact_magnitude": float(g.get("impact_magnitude", 0.0)),
         }
         
         # Inherit extra weather fields if present
-        for f in ["temp_low", "temp_high", "total_rain_mm", "conditions", "outlier", "outlier_hours", "outlier_label"]:
+        for f in [
+            "temp_low",
+            "temp_high",
+            "total_rain_mm",
+            "conditions",
+            "outlier",
+            "outlier_hours",
+            "outlier_label",
+            "outlier_alert",
+        ]:
             if f in g["extra"]:
                 sig_data[f] = g["extra"][f]
                 

@@ -6,7 +6,7 @@ import uuid
 from typing import Any
 
 import database as db
-from config import settings
+from config import FORECAST_HORIZON_DAYS, settings
 from services.fetchers import (
     fetch_eventbrite_nearby,
     fetch_google_places_nearby,
@@ -89,6 +89,7 @@ def refresh_signals_for_location(location_id: str) -> None:
 
     if _enabled(toggles, "open_meteo"):
         raw = fetch_open_meteo(lat, lng)
+        raw["forecast_horizon_days"] = FORECAST_HORIZON_DAYS
         db.insert_raw_signal(location_id, "open_meteo", raw)
         run_preprocessors(location_id, "open_meteo", raw)
 
@@ -119,7 +120,7 @@ def refresh_signals_for_location(location_id: str) -> None:
         st = {
             "location": loc_ctx,
             "state": state,
-            "forecast_days": 30,
+            "forecast_days": FORECAST_HORIZON_DAYS,
         }
         db.insert_raw_signal(location_id, "static", st)
         run_preprocessors(location_id, "static", st)

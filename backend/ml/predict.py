@@ -3,26 +3,33 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
 import database as db
+from config import FORECAST_HORIZON_DAYS
 from ml.training import load_model
 from preprocessors.common import format_forecast_dt
 
+_SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 
-def next_30_days_hourly(start: Optional[datetime] = None):
+
+def next_forecast_horizon_hourly(start: Optional[datetime] = None):
+    """Anchor at start of current Australia/Sydney calendar day, then step UTC hours (matches local ops)."""
     if start is None:
-        start = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-    for i in range(30 * 24):
+        now_local = datetime.now(_SYDNEY_TZ)
+        start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        start = start_local.astimezone(timezone.utc)
+    for i in range(FORECAST_HORIZON_DAYS * 24):
         yield start + timedelta(hours=i)
 
 
-def predict_next_30_days(location_id: str) -> list[dict[str, Any]]:
+def predict_forecast_horizon(location_id: str) -> list[dict[str, Any]]:
     model = load_model(location_id)
     predictions: list[dict[str, Any]] = []
 
-    for dt in next_30_days_hourly():
+    for dt in next_forecast_horizon_hourly():
         dow = dt.weekday()
         hour = dt.hour
         key = format_forecast_dt(dt)
@@ -106,6 +113,11 @@ def predict_next_30_days(location_id: str) -> list[dict[str, Any]]:
 
     db.write_predictions(predictions)
     return predictions
+
+
+# Backward-compatible alias
+predict_next_30_days = predict_forecast_horizon
+next_30_days_hourly = next_forecast_horizon_hourly
 
 
 def get_alerts(location_id: str, threshold_pct: int = 30) -> list[dict[str, Any]]:

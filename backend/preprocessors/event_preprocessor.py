@@ -134,6 +134,19 @@ def process_event_signal(
         crowd_modifier = get_crowd_confidence_modifier(crowd_type, transit_minutes)
         confidence = clamp(base_conf * crowd_modifier, 0.10, 0.99)
 
+        # LLM already gated include/exclude; sparse Eventbrite fields (e.g. tickets_sold=0,
+        # "announced") must not zero out confidence for strong transit/mixed verdicts.
+        _conf_before_floor = confidence
+        if crowd_type == "transit" and relevance_score >= 0.65:
+            confidence = max(confidence, 0.60)
+        elif crowd_type == "mixed" and relevance_score >= 0.70:
+            confidence = max(confidence, 0.60)
+        if confidence > _conf_before_floor + 1e-9:
+            print(
+                f"[RELEVANCE] LLM-relevance confidence floor: {name} ({crowd_type}) "
+                f"{_conf_before_floor:.2f} -> {confidence:.2f} (relevance_score={relevance_score})"
+            )
+
         if confidence < 0.60:
             print(f"[RELEVANCE] Suppressed low-confidence signal after crowd modifier: {name} (conf: {round(confidence, 2)})")
             continue

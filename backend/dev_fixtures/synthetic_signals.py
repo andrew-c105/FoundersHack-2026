@@ -84,6 +84,68 @@ def inject_synthetic_signals(location_id: str) -> None:
         }
     })
 
+    # 4. Major event — April 21 May 2026
+    # George Street Night Market running along the pedestrianised strip.
+    # High foot traffic directly past the location from 17:00–23:00.
+    # uplift: +18%, conf: 0.92, active hours: 17:00–23:00
+    signals.append({
+        "location_id": location_id,
+        "signal_type": "eventbrite",
+        "forecast_dt": "2026-05-21",
+        "uplift_pct": 0.18,
+        "signal_conf": 0.92,
+        "label": "George Street Night Market — Friday Autumn Edition",
+        "distance_km": 0.1,
+        "source_url": "synthetic",
+        "description": "Street food and night market running along George Street from Town Hall to Circular Quay. High foot traffic directly past the location expected 17:00–23:00. Strong uplift likely across dinner and late evening.",
+        "extra": {
+            "start_hour": 17,
+            "end_hour": 23,
+            "crowd_type": "transit",
+            "relevance_score": 0.92,
+            "venue": "George Street, Sydney CBD",
+            "capacity": 500,
+            "impact_direction": "positive",
+            "impact_magnitude": 0.18,
+            "reasoning": "Outdoor night market on the pedestrianised George Street strip. Estimated 500 attendees walking past over the evening. Crowds actively looking for food and drinks — strong direct uplift to nearby fast food.",
+        }
+    })
+
+    # 5. Major event — Friday 21 April 2026
+    # NRL match: NSW Waratahs vs Brumbies at Allianz Stadium, Sydney.
+    # Kick-off 19:35, match end ~21:35. Pre/post-game foot traffic uplift.
+    # uplift: +22%, conf: 0.88, active hours: 17:00–23:00
+    signals.append({
+        "location_id": location_id,
+        "signal_type": "sporting_event",
+        "forecast_dt": "2026-04-21",
+        "uplift_pct": 0.22,
+        "signal_conf": 0.88,
+        "label": "NRL — NSW Waratahs vs Brumbies @ Allianz Stadium",
+        "distance_km": 1.2,
+        "source_url": "synthetic",
+        "description": "NRL fixture between NSW Waratahs and Brumbies at Allianz Stadium, Sydney. Kick-off 19:35, estimated end 21:35. Pre-game crowds expected from ~17:00 as fans travel through the surrounding precinct. Post-game dispersal spike anticipated 21:30–23:00. Strong uplift likely across early dinner and late-night windows.",
+        "extra": {
+            "start_hour": 17,
+            "end_hour": 23,
+            "crowd_type": "sports_fan",
+            "relevance_score": 0.88,
+            "venue": "Allianz Stadium, Sydney",
+            "capacity": 20000,
+            "impact_direction": "positive",
+            "impact_magnitude": 0.22,
+            "reasoning": "Large-capacity NRL venue drawing ~20,000 attendees. Pre-game ingress from ~17:00 and post-game egress spike at ~21:35 drives strong foot traffic through nearby food and beverage outlets. Sports crowds are high-intent QSR consumers — elevated uplift expected across the full evening window.",
+            "match": {
+                "competition": "NRL",
+                "home_team": "NSW Waratahs",
+                "away_team": "Brumbies",
+                "kickoff": "19:35",
+                "estimated_end": "21:35",
+                "match_date": "2026-05-22",
+            }
+        }
+    })
+
     # Also map these into per-hour rows for the ML model predict pipeline if needed
     hourly_rows = []
     
@@ -103,6 +165,12 @@ def inject_synthetic_signals(location_id: str) -> None:
                 hourly_rows.append({
                     **s,
                     "forecast_dt": f"2026-03-23T{h:02d}:00:00"
+                })
+        elif s["signal_type"] in ("eventbrite", "sporting_event") and s.get("forecast_dt") == "2026-05-22":
+            for h in range(17, 24):
+                hourly_rows.append({
+                    **s,
+                    "forecast_dt": f"2026-05-22T{h:02d}:00:00"
                 })
 
     # Write synthetic signals to DB

@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 import hashlib
 import json
 
+from config import FORECAST_HORIZON_DAYS
+
+_SYDNEY_TZ = ZoneInfo("Australia/Sydney")
 from preprocessors.common import parse_dt
 import database as db
 from llm.relevance_filter import llm_weather_relevance
@@ -244,6 +248,56 @@ def process_weather_signal(raw_json: dict[str, Any], location_id: str) -> list[d
             "extra": extra,
             "description": reasoning, # Added description field here
         })
+
+    # Open-Meteo hourly forecast is ~16 days; pad remaining horizon with neutral placeholders (no extra fetch).
+    horizon_days = int(raw_json.get("forecast_horizon_days") or FORECAST_HORIZON_DAYS)
+    now_syd = datetime.now(_SYDNEY_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+    emitted_days = {r["forecast_dt"] for r in out}
+    neutral_reasoning = (
+        "No hourly weather forecast from Open-Meteo for this date; "
+        "impact treated as neutral (beyond API hourly horizon)."
+    )
+    for offset in range(horizon_days):
+        day_syd = now_syd + timedelta(days=offset)
+        ds = day_syd.strftime("%Y-%m-%d")
+        if ds in emitted_days:
+            continue
+        try:
+            day_label = day_syd.strftime("%A %d %b")
+        except ValueError:
+            day_label = ds
+        neutral_extra = {
+            "temp_low": None,
+            "temp_high": None,
+            "total_rain_mm": 0.0,
+            "conditions": "Not available",
+            "start_hour": 6,
+            "end_hour": 23,
+            "outlier": False,
+            "outlier_hours": None,
+            "outlier_label": None,
+            "impact_direction": "neutral",
+            "impact_magnitude": 0.0,
+            "description": neutral_reasoning,
+            "horizon_conf": 0.5,
+            "impact_conf": 1.0,
+            "beyond_api_horizon": True,
+        }
+        out.append(
+            {
+                "location_id": location_id,
+                "signal_type": "open_meteo",
+                "forecast_dt": ds,
+                "uplift_pct": 0.0,
+                "signal_conf": 0.5,
+                "label": f"Weather — {day_label} (neutral, beyond hourly API)",
+                "distance_km": None,
+                "source_url": "https://open-meteo.com/",
+                "extra": neutral_extra,
+                "description": neutral_reasoning,
+            }
+        )
+        emitted_days.add(ds)
         
     if out:
         print(f"[WEATHER] Processed {len(out)} days. Example: {out[0]['forecast_dt']} -> {out[0]['label']}")

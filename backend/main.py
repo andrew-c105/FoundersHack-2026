@@ -20,7 +20,7 @@ async def lifespan(_: FastAPI):
     shutdown_scheduler()
 
 
-app = FastAPI(title="Franchise Demand Forecast API", lifespan=lifespan)
+app = FastAPI(title="Peakly Demand Forecast API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

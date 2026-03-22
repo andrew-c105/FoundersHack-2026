@@ -28,10 +28,12 @@ export default function Layout() {
       <aside className="fixed inset-y-0 left-0 w-64 border-r border-gray-200 bg-white">
         <div className="flex h-16 items-center px-6 border-b border-gray-100">
           <Link to="/" className="group flex items-center gap-2 text-xl font-bold tracking-tight text-gray-900 transition-colors hover:text-blue-600 relative">
-            <div className="h-6 w-6 rounded-md bg-blue-600 flex items-center justify-center group-hover:bg-blue-700 transition-colors">
-              <span className="text-white text-xs font-black">F</span>
-            </div>
-            FranchiseOps
+            <img
+              src="/peakly_logo.png"
+              alt="Peakly"
+              className="h-8 w-8 shrink-0 object-contain transition-opacity group-hover:opacity-90"
+            />
+            Peakly
             
             <span className="absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none z-50">
               Back to home
@@ -73,7 +75,7 @@ export default function Layout() {
         {/* Top Header */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-50">
           <div className="flex items-center text-sm text-gray-500 font-medium">
-            FranchiseOps <span className="mx-2 text-gray-300">›</span> <span className="text-gray-900">Workspace</span>
+            Peakly <span className="mx-2 text-gray-300">›</span> <span className="text-gray-900">Workspace</span>
           </div>
 
           <div className="flex items-center gap-6">

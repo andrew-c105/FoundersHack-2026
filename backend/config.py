@@ -32,3 +32,6 @@ settings = Settings()
 settings.data_dir.mkdir(parents=True, exist_ok=True)
 settings.models_dir.mkdir(parents=True, exist_ok=True)
 settings.static_data_dir.mkdir(parents=True, exist_ok=True)
+
+# Full calendar days ahead from Australia/Sydney "today" (62 × 24h covers e.g. 22 Mar → 22 May inclusive).
+FORECAST_HORIZON_DAYS = 62
