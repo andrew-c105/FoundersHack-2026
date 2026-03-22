@@ -1,15 +1,15 @@
-# PulsePoint – Demand Forecasting for Franchise Restaurants
-**Know before it gets busy.** Hourly busyness predictions for the next 30 days, powered by real-world signals — weather, events, transport, school terms, and competitor activity.
+# Swell – Demand Forecasting for Local Businesses
+**Know before it gets busy.** Hourly busyness predictions for the next 60 days, powered by real-world signals — weather, events, transport, school terms, and competitor activity.
 Built for hackathon demo.
 
 ## How It Works
-PulsePoint monitors external signals around your location and synthesises them into an hourly busyness index. No POS integration needed — just your address and business type. A McDonald's and a bubble tea shop both understand *"38% above your normal Sunday 9pm"*.
+Swell monitors external signals around your location and synthesises them into an hourly busyness index. No POS integration needed — just your address and business type. A retail store and a bubble tea shop both understand *"38% above your normal Sunday 9pm"*.
 
 ## Tech Stack
-- **Frontend:** React, Tailwind CSS, Recharts, react-calendar-heatmap, React-Leaflet, Framer Motion
+- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, Recharts, react-calendar-heatmap, Framer Motion
 - **Backend:** FastAPI, APScheduler, XGBoost, scikit-learn, pandas
 - **ML:** XGBoost regressor trained on Popular Times baselines + live signal uplifts
-- **LLM:** Google Gemini (plain-English brief generation)
+- **LLM:** OpenRouter (Gemini Flash) — event relevance filtering, weather summarisation, plain-English brief generation
 - **Storage:** SQLite (single `.db` file)
 
 ## Quick Start
@@ -30,21 +30,33 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:3000**
+Open **http://localhost:5173**
+
+## Environment Variables
+Create `backend/.env` — see `.env.example` for the full list.
+
+| Variable | Role |
+|----------|------|
+| `GOOGLE_API_KEY` | Geocoding, Places, Popular Times |
+| `EVENTBRITE_TOKEN` | Nearby events |
+| `TRANSPORT_NSW_API_KEY` | Transport feeds |
+| `OPENROUTER_API_KEY` | LLM filtering and brief generation |
+| `DEV_SYNTHETIC_SIGNALS` | If `true`, injects demo rows for development |
 
 ## API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /locations | List registered locations |
-| POST | /locations | Onboard a new location |
-| GET | /locations/{id}/brief | Today's LLM-generated brief |
-| GET | /locations/{id}/predictions | 30-day hourly forecast |
-| GET | /locations/{id}/signals | Processed signal breakdown |
-| GET | /locations/{id}/baseline | Popular Times baseline curve |
-| POST | /locations/{id}/train | Trigger XGBoost retrain |
-| GET | /locations/{id}/accuracy | Prediction vs actual history |
-| GET | /locations/{id}/alerts | Hours exceeding +30% above normal |
+| POST | /api/locations/onboarding | Create location + initial pipeline |
+| POST | /api/locations/{id}/refresh | Re-fetch and preprocess signals |
+| POST | /api/locations/{id}/train | Train model only |
+| POST | /api/locations/{id}/predict | Run inference only |
+| POST | /api/locations/{id}/bootstrap-model | Train + predict |
+| GET | /api/locations/{id}/predictions | 60-day hourly forecast |
+| GET | /api/locations/{id}/brief | Plain-English brief for a date |
+| GET | /api/locations/{id}/signals/day | Aggregated signals for a calendar day |
+| GET | /api/locations/{id}/alerts | Hours exceeding deviation threshold |
+| GET | /api/locations/{id}/accuracy | Prediction vs actual history |
 
 ## Signal Sources
 
@@ -56,18 +68,16 @@ Open **http://localhost:3000**
 - Transport NSW — real-time bus, train, ferry, metro, and light rail disruptions
 - Live Traffic NSW — road closures and incidents within 800m
 
-**Loaded at onboarding, refreshed periodically**
-- NSW school term dates (scraped from education.nsw.gov.au)
-- Australian public holidays (data.gov.au)
-- AFL, NRL, A-League, Cricket fixtures (scraped per season)
-- University and TAFE academic calendars (USYD, UNSW, UTS, TAFE NSW)
-- ABS demographic data — suburb-level age, income, and SEIFA index
+**Bundled static data, refreshed periodically**
+- NSW school term dates
+- Australian public holidays by state
+- Sporting fixtures (AFL, NRL, A-League, Cricket) — geo-filtered
+- University and TAFE academic calendars — geo-filtered
 
 ## Requirements
 - **Python 3.9+** for backend
 - **Node 18+** for frontend
 - **populartimes** — unofficial Google Popular Times scraper: `pip install populartimes`
-- **FFmpeg** (optional): not required for core functionality
 - API keys stored in `.env` — see `.env.example`
 
 ## Pages
@@ -76,11 +86,10 @@ Open **http://localhost:3000**
 |------|-------------|
 | Landing | Value proposition, feature cards, single CTA |
 | Onboarding | 4-step wizard: business type → address → trading hours → signal confirmation |
-| Today's Brief | AI-written paragraph, 4 metric cards, signal breakdown chart, schedule approval |
-| Monthly Forecast | Heatmap tab, day view tab, alerts tab |
-| Signal Map | Leaflet map with circle overlays per signal, scaled by uplift percentage |
-| Location Settings | Business profile, signal toggles, accuracy scoreboard, anomaly flagging |
-| Accuracy History | Predicted vs actual line chart, 30-day track record, per-signal reliability |
+| Today's Brief | AI-written brief, 4 metric cards, signal breakdown chart, schedule approval |
+| Forecast | 60-day heatmap, day view with hourly bars, alerts tab |
+| Location Settings | Business profile, signal toggles, accuracy scoreboard |
+| Accuracy History | Predicted vs actual line chart, per-signal reliability |
 
 ## License
 MIT
