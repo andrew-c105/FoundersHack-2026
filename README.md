@@ -2,6 +2,13 @@
 **Know before it gets busy.** Hourly busyness predictions for the next 30 days, powered by real-world signals: weather, events, transport, school terms, and competitor activity.
 Built for hackathon demo.
 
+
+# PROJECT PRESENTATION YOUTUBE LINK
+https://youtu.be/4tYkp4-GTfA
+
+# PROJECT DEMO YOUTUBE LINK
+https://www.youtube.com/watch?v=2f8Lqf3G1UI
+
 ## How It Works
 Swell monitors external signals around your location and synthesises them into an hourly busyness index. No POS integration needed, just your address and business type. A retail store and a bubble tea shop both understand *"38% above your normal Sunday 9pm"*.
 
