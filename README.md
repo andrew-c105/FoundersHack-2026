@@ -1,23 +1,23 @@
 # Swell – Demand Forecasting for Local Businesses
-**Know before it gets busy.** Hourly busyness predictions for the next 30 days, powered by real-world signals — weather, events, transport, school terms, and competitor activity.
+**Know before it gets busy.** Hourly busyness predictions for the next 30 days, powered by real-world signals: weather, events, transport, school terms, and competitor activity.
 Built for hackathon demo.
 
 ## How It Works
-Swell monitors external signals around your location and synthesises them into an hourly busyness index. No POS integration needed — just your address and business type. A retail store and a bubble tea shop both understand *"38% above your normal Sunday 9pm"*.
+Swell monitors external signals around your location and synthesises them into an hourly busyness index. No POS integration needed, just your address and business type. A retail store and a bubble tea shop both understand *"38% above your normal Sunday 9pm"*.
 
 ## Tech Stack
 - **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, Recharts, react-calendar-heatmap, Framer Motion
 - **Backend:** FastAPI, APScheduler, XGBoost, scikit-learn, pandas
-- **ML:** XGBoost regressor trained on Popular Times baselines + live signal uplifts
-- **LLM:** OpenRouter (Gemini Flash) — event relevance filtering, weather summarisation, plain-English brief generation
+- **ML:** XGBoost regressor trained on Popular Times baselines and live signal uplifts
+- **LLM:** OpenRouter (Gemini Flash) for event relevance filtering, weather summarisation, and plain-English brief generation
 - **Storage:** SQLite (single `.db` file)
 
 **Fetched on refresh (scheduler every 6 hours, or manual refresh)**
 
-- **Weather** — Open-Meteo hourly forecast (~16 days of real hourly data). Days beyond that are stored as **neutral placeholders** (no extra API calls) so the pipeline aligns with the 30-day horizon.
-- **Events** — Eventbrite discovery near the location (when `EVENTBRITE_TOKEN` is set).
-- **Competitors** — Google Places nearby search (open/permanently closed, ratings).
-- **Transport / roads** — Transport NSW–style incident sample and Live Traffic NSW JSON feeds when keys/network allow (demo data may be used if APIs fail).
+- **Weather** Open-Meteo hourly forecast (~16 days of real hourly data). Days beyond that are stored as neutral placeholders (no extra API calls) so the pipeline aligns with the 30-day horizon.
+- **Events** Eventbrite discovery near the location (when `EVENTBRITE_TOKEN` is set).
+- **Competitors** Google Places nearby search (open/permanently closed, ratings).
+- **Transport / roads** Transport NSW-style incident sample and Live Traffic NSW JSON feeds when keys/network allow (demo data may be used if APIs fail).
 
 **From bundled static JSON** (`backend/data/static/`), expanded across the forecast window
 
@@ -46,7 +46,7 @@ If `OPENROUTER_API_KEY` is missing, the app falls back to template text and cons
 |--------|--------|
 | Backend | Python 3.9+, **FastAPI**, **SQLite**, **APScheduler** |
 | ML | **XGBoost**, **scikit-learn**, **pandas** |
-| LLM | **OpenRouter** (Gemini-flash model id above) |
+| LLM | **OpenRouter** (Gemini Flash) |
 | Frontend | **React 18**, **Vite**, **TypeScript**, **Tailwind CSS**, **Recharts**, **react-calendar-heatmap**, **Framer Motion** |
 
 ## Run locally
@@ -89,7 +89,7 @@ npm run dev
 Open **http://localhost:5173**
 
 ## Environment Variables
-Create `backend/.env` — see `.env.example` for the full list.
+Create `backend/.env`, see `.env.example` for the full list.
 
 | Variable | Role |
 |----------|------|
@@ -117,31 +117,31 @@ Create `backend/.env` — see `.env.example` for the full list.
 ## Signal Sources
 
 **Polled every 6 hours**
-- Open-Meteo — hourly weather forecast (temperature, precipitation, conditions)
-- Eventbrite — local events within 3km
-- Google Places — nearby competitor status and closures
-- Google Popular Times — historical busyness baseline by day and hour
-- Transport NSW — real-time bus, train, ferry, metro, and light rail disruptions
-- Live Traffic NSW — road closures and incidents within 800m
+- Open-Meteo: hourly weather forecast (temperature, precipitation, conditions)
+- Eventbrite: local events within 3km
+- Google Places: nearby competitor status and closures
+- Google Popular Times: historical busyness baseline by day and hour
+- Transport NSW: real-time bus, train, ferry, metro, and light rail disruptions
+- Live Traffic NSW: road closures and incidents within 800m
 
 **Bundled static data, refreshed periodically**
 - NSW school term dates
 - Australian public holidays by state
-- Sporting fixtures (AFL, NRL, A-League, Cricket) — geo-filtered
-- University and TAFE academic calendars — geo-filtered
+- Sporting fixtures (AFL, NRL, A-League, Cricket), geo-filtered
+- University and TAFE academic calendars, geo-filtered
 
 ## Requirements
 - **Python 3.9+** for backend
 - **Node 18+** for frontend
-- **populartimes** — unofficial Google Popular Times scraper: `pip install populartimes`
-- API keys stored in `.env` — see `.env.example`
+- **populartimes** unofficial Google Popular Times scraper: `pip install populartimes`
+- API keys stored in `.env`, see `.env.example`
 
 ## Pages
 
 | Page | Description |
 |------|-------------|
 | Landing | Value proposition, feature cards, single CTA |
-| Onboarding | 4-step wizard: business type → address → trading hours → signal confirmation |
+| Onboarding | 4-step wizard: business type, address, trading hours, signal confirmation |
 | Today's Brief | AI-written brief, 4 metric cards, signal breakdown chart, schedule approval |
 | Forecast | 30-day heatmap, day view with hourly bars, alerts tab |
 | Location Settings | Business profile, signal toggles, accuracy scoreboard |
